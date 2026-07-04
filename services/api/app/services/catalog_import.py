@@ -11,6 +11,8 @@ Columns (header row required; blank optional cells are fine):
   standards / tags : pipe-separated, e.g.  EN 388|EN 420
   status           : draft | published | archived   (default: published)
   is_featured      : true / false
+  price_kes        : blank is allowed — the row imports as a DRAFT so nothing
+                     goes on sale without a real price.
 """
 from __future__ import annotations
 
@@ -62,10 +64,18 @@ def import_products_csv(db: Session, data: bytes, actor: User) -> dict:
                 continue
 
             price_raw = (row.get("price_kes") or "").strip()
-            if not price_raw:
-                errors.append(f"row {i}: missing price_kes")
-                continue
-            price = float(price_raw)
+            price = float(price_raw) if price_raw else 0.0
+
+            status_val = (row.get("status") or "published").strip().lower()
+            status = (
+                ProductStatus(status_val)
+                if status_val in ProductStatus._value2member_map_
+                else ProductStatus.published
+            )
+            # A product can't go live without a real price — keep priceless rows as drafts.
+            if price <= 0 and status == ProductStatus.published:
+                status = ProductStatus.draft
+                errors.append(f"row {i}: no price — imported as DRAFT")
 
             # Category — match existing (fixed set); report if unknown.
             category = None
@@ -90,13 +100,6 @@ def import_products_csv(db: Session, data: bytes, actor: User) -> dict:
                     brand = Brand(name=bval, slug=unique_slug(db, Brand, bval))
                     db.add(brand)
                     db.flush()
-
-            status_val = (row.get("status") or "published").strip().lower()
-            status = (
-                ProductStatus(status_val)
-                if status_val in ProductStatus._value2member_map_
-                else ProductStatus.published
-            )
 
             images = []
             img = (row.get("image_url") or "").strip()
