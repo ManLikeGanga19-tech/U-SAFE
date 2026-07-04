@@ -213,8 +213,8 @@ export default function OverviewPage() {
         {lowStock.length === 0 ? (
           <p className="p-5 font-mono text-sm text-ink-400">All stock above reorder levels.</p>
         ) : (
-          <div className="max-h-80 overflow-y-auto">
-            <table className="w-full text-sm">
+          <div className="max-h-80 overflow-auto">
+            <table className="w-full min-w-[520px] text-sm">
               <thead className="sticky top-0 bg-white">
                 <tr className="border-b-2 border-ink-900 text-left font-display text-xs uppercase tracking-wideCaps">
                   <th className="px-5 py-2.5">Product</th>

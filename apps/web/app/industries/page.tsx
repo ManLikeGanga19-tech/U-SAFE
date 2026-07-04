@@ -65,12 +65,12 @@ export default function IndustriesPage() {
             {INDUSTRIES.map((name, i) => (
               <div
                 key={name}
-                className="flex min-h-[110px] flex-col justify-between bg-white p-5"
+                className="flex min-h-[110px] flex-col justify-between gap-3 bg-white p-4 sm:p-5"
               >
                 <span className="font-mono text-xs text-ink-400">
                   {String(i + 1).padStart(2, "0")}
                 </span>
-                <span className="font-display text-lg font-bold uppercase leading-tight text-ink-900">
+                <span className="hyphens-auto break-words font-display text-base font-bold uppercase leading-tight text-ink-900 sm:text-lg">
                   {name}
                 </span>
               </div>

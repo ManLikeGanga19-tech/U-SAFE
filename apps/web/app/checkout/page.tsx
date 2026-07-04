@@ -131,10 +131,10 @@ export default function CheckoutPage() {
           <div className="divide-y divide-ink-100">
             {cart.items.map((l) => (
               <div key={l.id} className="flex justify-between gap-3 px-5 py-3 text-sm">
-                <span className="text-ink-700">
+                <span className="min-w-0 text-ink-700">
                   {l.quantity} × {l.product_name}
                 </span>
-                <span className="font-mono">{formatKES(l.line_total_kes)}</span>
+                <span className="shrink-0 font-mono">{formatKES(l.line_total_kes)}</span>
               </div>
             ))}
           </div>

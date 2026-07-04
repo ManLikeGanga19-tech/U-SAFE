@@ -132,11 +132,11 @@ export function AreaChart({
         <span>{points[points.length - 1]?.label}</span>
       </div>
 
-      {/* floating tooltip */}
+      {/* floating tooltip (clamped so it never overflows the card edge) */}
       {hover !== null && (
         <div
           className="pointer-events-none absolute top-1 z-10 -translate-x-1/2 border-2 border-ink-900 bg-white px-2 py-1 text-center shadow-hard"
-          style={{ left: `${(hover / Math.max(1, n - 1)) * 100}%` }}
+          style={{ left: `${Math.min(88, Math.max(12, (hover / Math.max(1, n - 1)) * 100))}%` }}
         >
           <div className="font-mono text-[10px] uppercase text-ink-400">{points[hover].label}</div>
           <div className="font-display text-sm font-black text-ink-900">
