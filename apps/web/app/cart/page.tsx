@@ -50,10 +50,15 @@ export default function CartPage() {
                 )}
               </div>
 
-              <div className="flex flex-1 flex-col">
-                <Link href={`/product/${line.product_slug}`} className="font-display text-lg font-bold uppercase leading-tight hover:text-royal-600">
-                  {line.product_name}
-                </Link>
+              <div className="flex min-w-0 flex-1 flex-col">
+                <div className="flex items-start justify-between gap-3">
+                  <Link href={`/product/${line.product_slug}`} className="min-w-0 font-display text-base font-bold uppercase leading-tight hover:text-royal-600 sm:text-lg">
+                    {line.product_name}
+                  </Link>
+                  <span className="shrink-0 font-display text-base font-black sm:text-lg">
+                    {formatKES(line.line_total_kes)}
+                  </span>
+                </div>
                 <span className="font-mono text-xs text-ink-400">
                   {line.sku}{line.variant_name ? ` · ${line.variant_name}` : ""}
                 </span>
@@ -63,7 +68,7 @@ export default function CartPage() {
                   </span>
                 )}
 
-                <div className="mt-auto flex items-center justify-between pt-2">
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pt-1">
                   <div className="flex border-2 border-ink-900">
                     <button
                       type="button"
@@ -93,10 +98,6 @@ export default function CartPage() {
                     Remove
                   </button>
                 </div>
-              </div>
-
-              <div className="text-right font-display text-lg font-black">
-                {formatKES(line.line_total_kes)}
               </div>
             </div>
           ))}

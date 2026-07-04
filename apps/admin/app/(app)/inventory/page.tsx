@@ -39,7 +39,8 @@ export default function InventoryPage() {
         {low.length === 0 ? (
           <p className="p-5 font-mono text-sm text-ink-400">Everything above reorder level.</p>
         ) : (
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[520px] text-sm">
             <thead>
               <tr className="border-b-2 border-ink-900 text-left font-display text-xs uppercase tracking-wideCaps">
                 <th className="px-5 py-2.5">Product</th>
@@ -59,6 +60,7 @@ export default function InventoryPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 
@@ -68,7 +70,8 @@ export default function InventoryPage() {
           <h2 className="font-display text-lg font-black uppercase">Stock movement ledger</h2>
           {moves && <span className="font-mono text-xs text-ink-500">{moves.total} events</span>}
         </div>
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[560px] text-sm">
           <thead>
             <tr className="border-b-2 border-ink-900 text-left font-display text-xs uppercase tracking-wideCaps">
               <th className="px-5 py-2.5">When</th>
@@ -94,6 +97,7 @@ export default function InventoryPage() {
             ))}
           </tbody>
         </table>
+        </div>
         {moves && moves.pages > 1 && (
           <div className="flex items-center justify-between border-t-2 border-ink-900 px-5 py-3">
             <button disabled={page <= 1} onClick={() => setPage((p) => p - 1)} className="border-2 border-ink-900 px-4 py-1.5 font-display text-xs font-bold uppercase disabled:opacity-40 hover:bg-ink-900 hover:text-white">← Prev</button>
