@@ -1,0 +1,5 @@
+name,category,brand,summary,description,standards,tags,status,is_featured,sku,variant_name,price_kes,stock,reorder_level,image_url
+Nitrile Examination Gloves (Box of 100),Hand Protection,Ansell,Powder-free nitrile disposable gloves,"Ambidextrous, textured fingertips, latex-free. Ideal for medical, food-handling and industrial use.",EN 455|EN 374,,published,true,,Medium,850,500,50,
+Steel-Toe Rigger Boot S3,Footwear Protection,Safety Jogger,S3-rated rigger boot with steel toecap and midsole,"Water-resistant leather upper, anti-static, energy-absorbing heel, slip-resistant outsole.",EN ISO 20345|S3,bestseller,published,false,,UK 9,4200,120,20,
+Hi-Vis Bomber Jacket,General Workwear,Portwest,Class 3 hi-vis waterproof bomber jacket,"Reflective tape, concealed hood, quilted lining for cold-weather site work.",EN ISO 20471|Class 3,,published,false,,Large,3800,80,15,
+General Site Starter Kit,Head Protection,,"Helmet, glasses, gloves and ear plugs — everything a new site worker needs day one.",Bundle of core PPE for onboarding site staff.,,kit,published,true,,Standard,2950,60,10,

@@ -25,6 +25,9 @@ services:
         value: admin@u-safe.co.ke
       - key: FIRST_ADMIN_PASSWORD
         sync: false
+      # Production starts with a clean catalog (real products imported/entered).
+      - key: SEED_DEMO_PRODUCTS
+        value: "false"
       # CORS: set to your Vercel URLs (comma-separated), later your domains.
       - key: CORS_ORIGINS
         sync: false

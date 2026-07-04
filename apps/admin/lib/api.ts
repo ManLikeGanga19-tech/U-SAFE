@@ -56,6 +56,12 @@ export interface Page<T> {
 }
 export type ProductStatus = "draft" | "published" | "archived";
 
+export interface ImportResult {
+  created: number;
+  skipped: number;
+  errors: string[];
+}
+
 export interface Brand {
   id: string;
   name: string;
@@ -237,6 +243,19 @@ export const api = {
       req<Variant>("PATCH", `/admin/products/${pid}/variants/${vid}`, body),
     removeVariant: (pid: string, vid: string) =>
       req<void>("DELETE", `/admin/products/${pid}/variants/${vid}`),
+    importCsv: async (file: File): Promise<ImportResult> => {
+      const fd = new FormData();
+      fd.append("file", file);
+      const token = getToken();
+      const res = await fetch(`${V1}/admin/products/import`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: fd,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new ApiError(res.status, (data as { detail?: string }).detail || "Import failed");
+      return data as ImportResult;
+    },
   },
   categories: {
     list: () => req<Category[]>("GET", "/admin/categories"),

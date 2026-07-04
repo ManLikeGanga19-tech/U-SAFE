@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
@@ -21,7 +21,7 @@ from app.schemas.admin import (
     VariantUpdate,
 )
 from app.schemas.common import Page
-from app.services import audit, inventory
+from app.services import audit, catalog_import, inventory
 from app.services.slug import slugify, unique_slug
 
 router = APIRouter()
@@ -187,6 +187,22 @@ def create_product(
     audit.record(db, actor, "product.create", "product", product.id, {"name": product.name})
     db.commit()
     return _product_out(db, _load(db, product.id))
+
+
+# ── Bulk CSV import ───────────────────────────────────────
+@router.post("/import")
+async def import_products(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_staff),
+) -> dict:
+    if file.content_type not in ("text/csv", "application/vnd.ms-excel", "application/octet-stream", None):
+        # be lenient — some browsers send odd content types for .csv
+        pass
+    data = await file.read()
+    if not data:
+        raise HTTPException(status_code=400, detail="Empty file")
+    return catalog_import.import_products_csv(db, data, actor)
 
 
 # ── Read ──────────────────────────────────────────────────

@@ -48,6 +48,8 @@ class Settings(BaseSettings):
     # ── Seed admin ──
     FIRST_ADMIN_EMAIL: str = "admin@u-safe.co.ke"
     FIRST_ADMIN_PASSWORD: str = "ChangeMe123!"
+    # Seed demo products? Keep OFF in production (real catalog is imported/entered).
+    SEED_DEMO_PRODUCTS: bool = True
 
     # ── M-Pesa (Safaricom Daraja) ──
     # mode: "mock" (local dev simulator) | "sandbox" | "live"
