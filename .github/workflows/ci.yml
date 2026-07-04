@@ -2,10 +2,9 @@ name: CI/CD
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
 
-# Cancel superseded runs on the same ref.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -28,7 +27,6 @@ jobs:
       - name: Typecheck + build
         run: pnpm turbo run typecheck build
         env:
-          # placeholder — the real value is set in Vercel per app
           NEXT_PUBLIC_API_URL: https://api.placeholder.dev
 
   # ── Gate 2: API imports + Docker image builds ────────────
@@ -51,18 +49,72 @@ jobs:
       - name: Docker build
         run: docker build -t usafe-api:ci .
 
-  # ── Deploy: only on push to main, only if both gates pass ─
-  deploy:
-    name: Deploy (Render + Vercel)
+  # ── Deploy to STAGING (develop branch) ───────────────────
+  deploy-staging:
+    name: Deploy staging
+    needs: [frontend, api]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Trigger deploys (Render + Vercel, staging)
+        run: |
+          for hook in "$RENDER_API" "$RENDER_WORKER" "$VERCEL_WEB" "$VERCEL_ADMIN"; do
+            if [ -n "$hook" ]; then curl -fsS -X POST "$hook" >/dev/null && echo "triggered a deploy"; else echo "a staging hook is not set, skipping"; fi
+          done
+        env:
+          RENDER_API: ${{ secrets.STAGING_RENDER_DEPLOY_HOOK_API }}
+          RENDER_WORKER: ${{ secrets.STAGING_RENDER_DEPLOY_HOOK_WORKER }}
+          VERCEL_WEB: ${{ secrets.STAGING_VERCEL_DEPLOY_HOOK_WEB }}
+          VERCEL_ADMIN: ${{ secrets.STAGING_VERCEL_DEPLOY_HOOK_ADMIN }}
+      - name: Smoke test staging API
+        env:
+          BASE: ${{ vars.STAGING_API_URL }}
+        run: |
+          [ -z "$BASE" ] && { echo "STAGING_API_URL not set — skipping smoke test"; exit 0; }
+          SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          echo "Waiting for $BASE to report version $SHA"
+          for i in $(seq 1 50); do
+            body=$(curl -fsS --max-time 10 "$BASE/api/v1/health" 2>/dev/null || echo '{}')
+            status=$(printf '%s' "$body" | python3 -c "import sys,json;print(json.load(sys.stdin).get('status',''))" 2>/dev/null || echo '')
+            ver=$(printf '%s' "$body" | python3 -c "import sys,json;print(json.load(sys.stdin).get('version',''))" 2>/dev/null || echo '')
+            echo "  [$i/50] status=$status version=$ver"
+            if [ "$status" = "ok" ] && [ "$ver" = "$SHA" ]; then echo "Staging healthy on new version."; exit 0; fi
+            sleep 15
+          done
+          echo "::error::Staging did not report healthy on $SHA in time"; exit 1
+
+  # ── Deploy to PRODUCTION (main branch) ───────────────────
+  deploy-production:
+    name: Deploy production
     needs: [frontend, api]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    environment: production
     steps:
-      - name: Deploy API (Render)
-        run: curl -fsS -X POST "${{ secrets.RENDER_DEPLOY_HOOK_API }}"
-      - name: Deploy worker (Render)
-        run: curl -fsS -X POST "${{ secrets.RENDER_DEPLOY_HOOK_WORKER }}"
-      - name: Deploy storefront (Vercel)
-        run: curl -fsS -X POST "${{ secrets.VERCEL_DEPLOY_HOOK_WEB }}"
-      - name: Deploy admin (Vercel)
-        run: curl -fsS -X POST "${{ secrets.VERCEL_DEPLOY_HOOK_ADMIN }}"
+      - name: Trigger deploys (Render + Vercel, production)
+        run: |
+          for hook in "$RENDER_API" "$RENDER_WORKER" "$VERCEL_WEB" "$VERCEL_ADMIN"; do
+            if [ -n "$hook" ]; then curl -fsS -X POST "$hook" >/dev/null && echo "triggered a deploy"; else echo "a production hook is not set, skipping"; fi
+          done
+        env:
+          RENDER_API: ${{ secrets.RENDER_DEPLOY_HOOK_API }}
+          RENDER_WORKER: ${{ secrets.RENDER_DEPLOY_HOOK_WORKER }}
+          VERCEL_WEB: ${{ secrets.VERCEL_DEPLOY_HOOK_WEB }}
+          VERCEL_ADMIN: ${{ secrets.VERCEL_DEPLOY_HOOK_ADMIN }}
+      - name: Smoke test production API (verify new version is live)
+        env:
+          BASE: ${{ vars.PROD_API_URL }}
+        run: |
+          [ -z "$BASE" ] && { echo "PROD_API_URL not set — skipping smoke test"; exit 0; }
+          SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          echo "Waiting for $BASE to report version $SHA"
+          for i in $(seq 1 50); do
+            body=$(curl -fsS --max-time 10 "$BASE/api/v1/health" 2>/dev/null || echo '{}')
+            status=$(printf '%s' "$body" | python3 -c "import sys,json;print(json.load(sys.stdin).get('status',''))" 2>/dev/null || echo '')
+            ver=$(printf '%s' "$body" | python3 -c "import sys,json;print(json.load(sys.stdin).get('version',''))" 2>/dev/null || echo '')
+            echo "  [$i/50] status=$status version=$ver"
+            if [ "$status" = "ok" ] && [ "$ver" = "$SHA" ]; then echo "Production healthy on new version."; exit 0; fi
+            sleep 15
+          done
+          echo "::error::Production did not report healthy on $SHA in time"; exit 1

@@ -41,9 +41,12 @@ Keep these for Render:
 ---
 
 ## 2. Render — API + worker + Postgres + Redis
-1. Render → **New +** → **Blueprint** → connect the GitHub repo. Render reads
-   `infra/render.yaml` and proposes: `usafe-api` (web), `usafe-worker`,
-   `usafe-redis` (Key Value), `usafe-db` (Postgres).
+1. Render → **New +** → **Blueprint** → connect the GitHub repo. `render.yaml`
+   lives at the **repo root** (Blueprint Path can stay the default `render.yaml`).
+   Render proposes: `usafe-api` (web), `usafe-worker`, `usafe-redis` (Key Value),
+   `usafe-db` (Postgres).
+   > If Render says *"render.yaml not found on main"*, the file just isn't pushed
+   > yet — commit/push and retry.
 2. **Apply**. Then open **usafe-api → Environment** and fill the `sync:false` vars:
 
 | Var | Value |
@@ -98,35 +101,62 @@ Import the **same repo twice** (once per app).
 ---
 
 ## 4b. CI/CD — automated deploys (GitHub Actions)
-The pipeline in `.github/workflows/ci.yml` runs on every push to `main`:
-**build + typecheck web/admin → build the API image → (only if green) deploy** all four
-services via deploy hooks. Nothing ships unless CI passes.
 
-> One-time provisioning (steps 1–4 above) still happens once in the dashboards — that
-> creates the services and does the first deploy. After that, every push to `main`
-> auto-deploys through the pipeline.
+### Branch strategy (keeps bugs out of production)
+```
+feature/* ──PR──▶ develop ──(auto)──▶ STAGING
+                     │
+                     └──PR──▶ main ──(auto)──▶ PRODUCTION
+```
+- All work happens on `develop` (or feature branches → PR into `develop`).
+- Push to **`develop`** → CI runs, then deploys to **staging**.
+- Promote by PR **`develop` → `main`**; on merge, CI runs, then deploys to **production**.
+- **Pull requests run the build/typecheck gates only** — no deploy.
 
-**a) Turn off native auto-deploy** (so the pipeline is the only thing that deploys —
-no double builds):
-- Render: already handled — `render.yaml` sets `autoDeploy: false` on the API + worker.
-- Vercel: each project → **Settings → Git** → disable automatic production deployments.
+The pipeline (`.github/workflows/ci.yml`) always: **build + typecheck web/admin → build
+the API image → (only if green) deploy**, then a **post-deploy smoke test** polls the API's
+`/health` and confirms it reports the *new* commit SHA (via Render's `RENDER_GIT_COMMIT`).
+If the new version doesn't come up healthy, the run fails.
 
-**b) Create deploy hooks:**
-- Render → `usafe-api` → **Settings → Deploy Hook** → copy URL.
-- Render → `usafe-worker` → **Settings → Deploy Hook** → copy URL.
-- Vercel → `usafe-web` → **Settings → Git → Deploy Hooks** → create one for branch
-  `main` → copy URL. Same for `usafe-admin`.
+> One-time provisioning (steps 1–4) still happens once per environment in the dashboards
+> (that does the first deploy). After that, deploys are automatic.
 
-**c) Add them as GitHub repo secrets** (**Settings → Secrets and variables → Actions**):
-| Secret | Value |
+### Setup
+**a) Native auto-deploy off** (pipeline is the only deployer — no double builds):
+- Render: handled by `render.yaml` (`autoDeploy: false`).
+- Vercel: each project → **Settings → Git** → turn off automatic production deployments.
+
+**b) Create deploy hooks** (Render: service → **Settings → Deploy Hook**; Vercel: project →
+**Settings → Git → Deploy Hooks**, branch = that env's branch).
+
+**c) GitHub → Settings → Environments** → create **`production`** and **`staging`**.
+On `production`, optionally add a **Required reviewer** → then every prod deploy waits for
+your manual approval (a hard gate against bad releases).
+
+**d) Add secrets + variables** (repo or per-environment, Settings → Secrets and variables → Actions):
+
+| Production secret | Value |
 |---|---|
-| `RENDER_DEPLOY_HOOK_API` | Render API deploy-hook URL |
-| `RENDER_DEPLOY_HOOK_WORKER` | Render worker deploy-hook URL |
-| `VERCEL_DEPLOY_HOOK_WEB` | Vercel storefront deploy-hook URL |
-| `VERCEL_DEPLOY_HOOK_ADMIN` | Vercel admin deploy-hook URL |
+| `RENDER_DEPLOY_HOOK_API` | Render prod API hook |
+| `RENDER_DEPLOY_HOOK_WORKER` | Render prod worker hook |
+| `VERCEL_DEPLOY_HOOK_WEB` | Vercel prod web hook |
+| `VERCEL_DEPLOY_HOOK_ADMIN` | Vercel prod admin hook |
 
-Done — now `git push` to `main` builds, tests, and deploys everything automatically.
-(Pull requests run the build/typecheck gates only, no deploy.)
+| Staging secret | Value |
+|---|---|
+| `STAGING_RENDER_DEPLOY_HOOK_API` / `..._WORKER` | Render staging hooks |
+| `STAGING_VERCEL_DEPLOY_HOOK_WEB` / `..._ADMIN` | Vercel staging hooks |
+
+| Variable (public) | Value |
+|---|---|
+| `PROD_API_URL` | `https://usafe-api.onrender.com` (prod API base) |
+| `STAGING_API_URL` | staging API base |
+
+Staging is optional to start — if the staging secrets/vars aren't set, that job just skips
+its steps. Production works with only the four production secrets + `PROD_API_URL`.
+
+Done — `git push` to `develop` ships staging, PR-merge to `main` ships production, both gated
+by CI and verified by the health check.
 
 ---
 
