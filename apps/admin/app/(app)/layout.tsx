@@ -35,11 +35,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="grid min-h-screen grid-cols-1 lg:grid-cols-[240px_1fr]">
-      <aside className="border-r-2 border-ink-900 bg-ink-900 text-white">
+      <aside className="flex flex-col border-r-2 border-ink-900 bg-ink-900 text-white lg:sticky lg:top-0 lg:h-screen lg:self-start lg:overflow-y-auto">
         <div className="border-b-2 border-ink-700 p-5 font-display text-xl font-black tracking-tightest">
           U-SAFE<span className="text-signal-500">.</span>
         </div>
-        <nav className="p-3">
+        <nav className="flex-1 p-3">
           {NAV.map((item) => {
             const active =
               item.href === "/"
@@ -60,9 +60,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             );
           })}
         </nav>
-        <div className="p-3">
+        <div className="border-t-2 border-ink-700 p-3">
           <a
-            href="http://localhost:3000"
+            href={process.env.NEXT_PUBLIC_STOREFRONT_URL || "http://localhost:3000"}
             target="_blank"
             rel="noopener noreferrer"
             className="block px-3 py-2 font-mono text-xs text-ink-400 hover:text-signal-500"
@@ -73,7 +73,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className="flex min-w-0 flex-col">
-        <header className="flex items-center justify-between border-b-2 border-ink-900 bg-white px-6 py-4">
+        <header className="sticky top-0 z-30 flex items-center justify-between border-b-2 border-ink-900 bg-white px-6 py-4">
           <span className="font-display text-xs font-bold uppercase tracking-wideCaps text-ink-400">
             Control plane
           </span>

@@ -8,6 +8,7 @@ from app.api.v1.admin import (
     orders,
     products,
     quotes,
+    stats,
     taxonomy,
 )
 
@@ -20,3 +21,4 @@ admin_router.include_router(orders.router, prefix="/orders", tags=["admin:orders
 admin_router.include_router(quotes.router, prefix="/quotes", tags=["admin:quotes"])
 admin_router.include_router(content.router, prefix="/content", tags=["admin:content"])
 admin_router.include_router(media.router, prefix="/media", tags=["admin:media"])
+admin_router.include_router(stats.router, tags=["admin:stats"])

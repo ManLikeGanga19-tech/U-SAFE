@@ -62,6 +62,17 @@ export interface ImportResult {
   errors: string[];
 }
 
+export interface DashboardStats {
+  products: { total: number; published: number; draft: number };
+  catalog: { categories: number; brands: number };
+  orders: { total: number; by_status: Record<string, number> };
+  quotes: { total: number; by_status: Record<string, number> };
+  revenue: { total_kes: number; orders: number; avg_order_kes: number };
+  revenue_series: { date: string; orders: number; revenue_kes: number }[];
+  top_products: { name: string; qty: number; revenue_kes: number }[];
+  low_stock_count: number;
+}
+
 export interface Brand {
   id: string;
   name: string;
@@ -268,6 +279,9 @@ export const api = {
     create: (body: unknown) => req<Brand>("POST", "/admin/brands", body),
     update: (id: string, body: unknown) => req<Brand>("PATCH", `/admin/brands/${id}`, body),
     remove: (id: string) => req<void>("DELETE", `/admin/brands/${id}`),
+  },
+  stats: {
+    get: () => req<DashboardStats>("GET", "/admin/stats"),
   },
   inventory: {
     adjust: (vid: string, body: unknown) => req<Variant>("POST", `/admin/inventory/variants/${vid}/adjust`, body),
