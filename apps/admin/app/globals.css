@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --font-display: "Archivo", "Arial Narrow", system-ui, sans-serif;
+    --font-sans: "Inter", system-ui, "Segoe UI", Arial, sans-serif;
+  }
+  body {
+    font-family: var(--font-sans);
+    color: theme("colors.ink.900");
+    background: theme("colors.ink.50");
+  }
+  h1, h2, h3, h4 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+  :focus-visible {
+    outline: 3px solid theme("colors.signal.500");
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .btn-signal {
+    @apply inline-flex items-center justify-center gap-2 bg-signal-500 px-6 py-3
+           font-display font-bold uppercase tracking-wideCaps text-sm text-ink-900
+           border-2 border-ink-900 transition-colors hover:bg-signal-400
+           disabled:opacity-50;
+  }
+  .field {
+    @apply w-full border-2 border-ink-900 bg-white px-4 py-3 text-sm
+           text-ink-900 placeholder:text-ink-400 focus:outline-none
+           focus:shadow-focus;
+  }
+  .label {
+    @apply mb-1.5 block font-display text-xs font-bold uppercase tracking-wideCaps text-ink-700;
+  }
+}

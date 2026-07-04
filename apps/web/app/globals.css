@@ -1,0 +1,86 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --font-display: "Archivo", "Arial Narrow", system-ui, sans-serif;
+    --font-sans: "Inter", system-ui, "Segoe UI", Arial, sans-serif;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    color: theme("colors.ink.900");
+    background: theme("colors.white");
+    /* Guard against accidental horizontal scroll on small screens */
+    overflow-x: hidden;
+  }
+
+  h1, h2, h3, h4 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+    line-height: 0.98;
+  }
+
+  /* Accessible focus ring in signal green, no rounded corners. */
+  :focus-visible {
+    outline: 3px solid theme("colors.signal.500");
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: theme("colors.signal.500");
+    color: theme("colors.ink.900");
+  }
+}
+
+@layer components {
+  .shell {
+    @apply mx-auto w-full max-w-shell px-5 md:px-8;
+  }
+
+  /* Full-bleed container — spans the whole viewport width (nav bar, footer). */
+  .shell-fluid {
+    @apply w-full px-5 md:px-8 lg:px-12 xl:px-16;
+  }
+
+  .eyebrow {
+    @apply font-display uppercase tracking-wideCaps text-xs font-bold;
+  }
+
+  /* Primary action — hi-vis convention: signal fill, black text. */
+  .btn-signal {
+    @apply inline-flex items-center gap-2 bg-signal-500 px-6 py-3
+           font-display font-bold uppercase tracking-wideCaps text-sm text-ink-900
+           border-2 border-ink-900 transition-colors hover:bg-signal-400;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center gap-2 bg-transparent px-6 py-3
+           font-display font-bold uppercase tracking-wideCaps text-sm text-ink-900
+           border-2 border-ink-900 transition-colors hover:bg-ink-900 hover:text-white;
+  }
+
+  .rule {
+    @apply border-t-2 border-ink-900;
+  }
+
+  /* Industrial blueprint grid textures */
+  .blueprint-grid {
+    background-image:
+      repeating-linear-gradient(90deg, #0b0b0c 0 1px, transparent 1px 46px),
+      repeating-linear-gradient(0deg, #0b0b0c 0 1px, transparent 1px 46px);
+  }
+  .blueprint-grid-light {
+    background-image:
+      repeating-linear-gradient(90deg, #fff 0 1px, transparent 1px 44px),
+      repeating-linear-gradient(0deg, #fff 0 1px, transparent 1px 44px);
+  }
+  .hero-product-shadow {
+    filter: drop-shadow(0 24px 40px rgba(0, 0, 0, 0.55));
+  }
+}

@@ -1,0 +1,191 @@
+"""Idempotent baseline seed: admin user, categories, brands, demo products.
+
+Runs on container start (see entrypoint.sh). Safe to run repeatedly.
+"""
+from __future__ import annotations
+
+import re
+
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.core.config import settings
+from app.core.database import SessionLocal
+from app.core.security import hash_password
+from app.models.catalog import Brand, Category, Product, ProductStatus, ProductVariant
+from app.models.content import ContentBlock
+from app.models.inventory import InventoryItem, StockMovement, StockReason
+from app.models.user import User, UserRole
+
+CATEGORIES = [
+    "Respiratory Protection",
+    "Chemical Protection",
+    "Hand Protection",
+    "Safety Showers & Eyewash",
+    "Footwear Protection",
+    "Eyewear Protection",
+    "Hearing Protection",
+    "General Workwear",
+    "Head Protection",
+    "Facilities Safety & Lockout-Tagout",
+    "Welding Protection",
+    "First Aid",
+]
+
+BRANDS = [
+    "3M", "Vaultex", "Portwest", "Ansell", "JSP", "Safety Jogger", "ACE",
+    "Bata", "Bulldog", "BOVA", "Ultimate", "Honeywell", "Uvex", "Timberland",
+    "Talan", "JCB", "CAT", "Protecta", "Safetoe",
+]
+
+# name, category slug, brand name, summary, standards, price, qty, featured
+# name, category slug, brand, summary, standards, price, qty, featured, tags
+DEMO_PRODUCTS = [
+    ("Green Safety Helmet HDPE", "head-protection", "JSP",
+     "Vented HDPE hard hat with 6-point harness. Compatible with earmuffs & visors.",
+     ["EN 397"], 1200, 80, True, []),
+    ("Cut-Resistant Nitrile Gloves", "hand-protection", "Ansell",
+     "Level D cut protection with foam-nitrile grip for oily handling.",
+     ["EN 388", "EN 420"], 650, 300, True, []),
+    ("Clear Anti-Fog Safety Spectacles", "eyewear-protection", "Uvex",
+     "Wraparound polycarbonate lens, anti-fog and anti-scratch coated.",
+     ["EN 166"], 850, 220, True, []),
+    ("Hi-Vis Reflective Vest — Yellow", "general-workwear", "Portwest",
+     "Two-band hi-visibility waistcoat, breathable knitted polyester.",
+     ["EN ISO 20471"], 750, 500, True, []),
+    ("Steel-Toe Safety Boot S3", "footwear-protection", "Safety Jogger",
+     "S3 rated leather boot, steel toe cap and midsole, oil-resistant sole.",
+     ["EN ISO 20345 S3"], 4500, 120, True, []),
+    ("Half-Mask Reusable Respirator", "respiratory-protection", "3M",
+     "Reusable half facepiece with bayonet filter mounts for dust & vapour.",
+     ["EN 140"], 2800, 90, True, []),
+    # ── Kits & bundles (tagged "kit") ──
+    ("Construction Site PPE Starter Kit", "head-protection", "Vaultex",
+     "Complete site-ready kit: hard hat, hi-vis vest, safety spectacles, gloves and ear plugs.",
+     ["EN 397", "EN ISO 20471"], 3900, 60, True, ["kit"]),
+    ("Welding Safety Kit", "welding-protection", "3M",
+     "Auto-darkening welding helmet, leather apron, welding gauntlets and safety spats.",
+     ["EN 175", "EN 388"], 8500, 35, False, ["kit"]),
+    ("Chemical Handling PPE Kit", "chemical-protection", "Ansell",
+     "Chemical splash suit, nitrile gauntlets, goggles and respirator for safe handling.",
+     ["EN 14605", "EN 374"], 6200, 40, False, ["kit"]),
+]
+
+
+def slugify(value: str) -> str:
+    value = value.lower().strip()
+    value = re.sub(r"[^a-z0-9]+", "-", value)
+    return value.strip("-")
+
+
+def upsert_admin(db: Session) -> None:
+    email = settings.FIRST_ADMIN_EMAIL.lower()
+    if db.scalar(select(User).where(User.email == email)):
+        return
+    db.add(
+        User(
+            email=email,
+            hashed_password=hash_password(settings.FIRST_ADMIN_PASSWORD),
+            full_name="U-SAFE Administrator",
+            role=UserRole.super_admin,
+        )
+    )
+    print(f"[seed] created admin {email}")
+
+
+def upsert_categories(db: Session) -> dict[str, Category]:
+    result: dict[str, Category] = {}
+    for i, name in enumerate(CATEGORIES):
+        slug = slugify(name)
+        cat = db.scalar(select(Category).where(Category.slug == slug))
+        if not cat:
+            cat = Category(name=name, slug=slug, sort_order=i)
+            db.add(cat)
+        result[slug] = cat
+    return result
+
+
+def upsert_brands(db: Session) -> dict[str, Brand]:
+    result: dict[str, Brand] = {}
+    for name in BRANDS:
+        slug = slugify(name)
+        brand = db.scalar(select(Brand).where(Brand.slug == slug))
+        if not brand:
+            brand = Brand(name=name, slug=slug)
+            db.add(brand)
+        result[name] = brand
+    return result
+
+
+def upsert_products(db: Session, cats: dict[str, Category], brands: dict[str, Brand]) -> None:
+    for name, cat_slug, brand_name, summary, standards, price, qty, featured, tags in DEMO_PRODUCTS:
+        slug = slugify(name)
+        if db.scalar(select(Product).where(Product.slug == slug)):
+            continue
+        product = Product(
+            name=name,
+            slug=slug,
+            summary=summary,
+            description=summary,
+            status=ProductStatus.published,
+            is_featured=featured,
+            standards=standards,
+            tags=tags,
+            category=cats.get(cat_slug),
+            brand=brands.get(brand_name),
+            images=[],
+        )
+        variant = ProductVariant(
+            sku=f"USF-{slug[:10].upper().replace('-', '')}-STD",
+            name="Standard",
+            options={},
+            price_kes=price,
+        )
+        product.variants.append(variant)
+        db.add(product)
+        db.flush()  # get variant id
+
+        inv = InventoryItem(variant_id=variant.id, quantity_on_hand=qty, reorder_level=20)
+        db.add(inv)
+        db.add(
+            StockMovement(
+                variant_id=variant.id,
+                delta=qty,
+                reason=StockReason.restock,
+                note="Initial seed stock",
+            )
+        )
+        print(f"[seed] product {name}")
+
+
+def upsert_home_hero(db: Session) -> None:
+    if db.scalar(select(ContentBlock).where(ContentBlock.key == "home_hero")):
+        return
+    db.add(
+        ContentBlock(
+            key="home_hero",
+            kind="hero",
+            title="Ensuring you are safe.",
+            body="Multi-brand distributor of certified PPE & safety equipment across Kenya and the wider African continent.",
+            data={"cta_label": "Shop equipment", "cta_href": "/catalog"},
+        )
+    )
+
+
+def main() -> None:
+    db = SessionLocal()
+    try:
+        upsert_admin(db)
+        cats = upsert_categories(db)
+        brands = upsert_brands(db)
+        db.flush()
+        upsert_products(db, cats, brands)
+        upsert_home_hero(db)
+        db.commit()
+        print("[seed] done")
+    finally:
+        db.close()
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,32 @@
+/* U-SAFE KE — design tokens as CSS variables (mirror of tailwind-preset.js). */
+:root {
+  /* Signal green — logo "U" / primary action */
+  --signal-500: #00e000;
+  --signal-400: #2ce800;
+  --signal-600: #00b800;
+
+  /* Royal blue — corporate / nav */
+  --royal-500: #123fb5;
+  --royal-600: #0e3396;
+  --royal-700: #0b2872;
+
+  /* Sky / cyan — secondary */
+  --sky-400: #00a7f0;
+
+  /* Hi-vis orange — alert / sale */
+  --hivis-400: #f5a312;
+
+  /* Ink — neutral scale */
+  --ink-900: #0b0b0c;
+  --ink-700: #2a2c2f;
+  --ink-500: #666a70;
+  --ink-300: #b4b8be;
+  --ink-200: #d7dade;
+  --ink-100: #eceef0;
+  --ink-50: #f6f7f8;
+  --white: #ffffff;
+
+  /* Structural */
+  --shell-max: 1360px;
+  --border-strong: 2px solid var(--ink-900);
+}

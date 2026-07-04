@@ -1,0 +1,80 @@
+# Render blueprint — backend half of U-SAFE (API + worker + Postgres + Redis).
+# Frontends (web, admin) deploy separately on Vercel.
+# Docs: https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: usafe-api
+    runtime: docker
+    dockerfilePath: ./services/api/Dockerfile
+    dockerContext: ./services/api
+    plan: starter
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: RUN_MIGRATIONS
+        value: "1"
+      - key: ENVIRONMENT
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGINS
+        sync: false # set to https://u-safe.co.ke,https://admin.u-safe.co.ke
+      - key: POSTGRES_HOST
+        fromDatabase: { name: usafe-db, property: host }
+      - key: POSTGRES_PORT
+        fromDatabase: { name: usafe-db, property: port }
+      - key: POSTGRES_USER
+        fromDatabase: { name: usafe-db, property: user }
+      - key: POSTGRES_PASSWORD
+        fromDatabase: { name: usafe-db, property: password }
+      - key: POSTGRES_DB
+        fromDatabase: { name: usafe-db, property: database }
+      - key: REDIS_HOST
+        fromService: { name: usafe-redis, type: keyvalue, property: host }
+      - key: REDIS_PORT
+        fromService: { name: usafe-redis, type: keyvalue, property: port }
+      # Object storage → Cloudflare R2 (set as secrets in the dashboard)
+      - key: S3_ENDPOINT
+        sync: false
+      - key: S3_ACCESS_KEY
+        sync: false
+      - key: S3_SECRET_KEY
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+
+  - type: worker
+    name: usafe-worker
+    runtime: docker
+    dockerfilePath: ./services/api/Dockerfile
+    dockerContext: ./services/api
+    plan: starter
+    dockerCommand: arq app.worker.WorkerSettings
+    envVars:
+      - key: RUN_MIGRATIONS
+        value: "0"
+      - key: JWT_SECRET
+        fromService: { name: usafe-api, type: web, envVarKey: JWT_SECRET }
+      - key: POSTGRES_HOST
+        fromDatabase: { name: usafe-db, property: host }
+      - key: POSTGRES_PORT
+        fromDatabase: { name: usafe-db, property: port }
+      - key: POSTGRES_USER
+        fromDatabase: { name: usafe-db, property: user }
+      - key: POSTGRES_PASSWORD
+        fromDatabase: { name: usafe-db, property: password }
+      - key: POSTGRES_DB
+        fromDatabase: { name: usafe-db, property: database }
+      - key: REDIS_HOST
+        fromService: { name: usafe-redis, type: keyvalue, property: host }
+      - key: REDIS_PORT
+        fromService: { name: usafe-redis, type: keyvalue, property: port }
+
+  - type: keyvalue
+    name: usafe-redis
+    plan: starter
+    ipAllowList: [] # only internal services
+
+databases:
+  - name: usafe-db
+    plan: basic-256mb
+    postgresMajorVersion: "16"

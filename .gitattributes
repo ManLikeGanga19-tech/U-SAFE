@@ -1,0 +1,19 @@
+# Normalize line endings in the repo to LF; check out per-platform.
+* text=auto
+
+# Scripts / files that MUST stay LF (Docker/Linux would break on CRLF).
+*.sh        text eol=lf
+Dockerfile  text eol=lf
+*.Dockerfile text eol=lf
+entrypoint.sh text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+
+# Treat these as binary (no EOL conversion, no diff noise).
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.webp binary
+*.gif  binary
+*.ico  binary
+*.pdf  binary

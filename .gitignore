@@ -1,0 +1,48 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Builds
+.next/
+out/
+dist/
+build/
+.turbo/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Docker / data
+services/api/.data/
+minio-data/
+pg-data/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# TypeScript build info (build artifact)
+*.tsbuildinfo
+
+# Source material / reference assets — not needed to build or deploy.
+# (App images live in apps/*/public which ARE tracked.)
+/U SAFE KE COMPANY PROFILE/
+/assets/

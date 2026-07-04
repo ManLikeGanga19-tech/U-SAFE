@@ -1,0 +1,7 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# pnpm 10/11: explicitly approve native build scripts (no interactive prompt in CI/Docker).
+onlyBuiltDependencies:
+  - sharp
