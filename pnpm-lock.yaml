@@ -17,6 +17,9 @@ importers:
 
   apps/admin:
     dependencies:
+      framer-motion:
+        specifier: ^12.42.2
+        version: 12.42.2(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
       next:
         specifier: 15.1.11
         version: 15.1.11(react-dom@19.0.0(react@19.0.0))(react@19.0.0)

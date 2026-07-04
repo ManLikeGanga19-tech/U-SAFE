@@ -37,4 +37,10 @@
   .label {
     @apply mb-1.5 block font-display text-xs font-bold uppercase tracking-wideCaps text-ink-700;
   }
+  /* Industrial blueprint grid texture (matches storefront) */
+  .blueprint-grid-light {
+    background-image:
+      repeating-linear-gradient(90deg, #fff 0 1px, transparent 1px 44px),
+      repeating-linear-gradient(0deg, #fff 0 1px, transparent 1px 44px);
+  }
 }
