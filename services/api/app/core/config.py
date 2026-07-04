@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     POSTGRES_PORT: int = 5432
 
     # ── Redis ──
+    # In prod, set REDIS_URL to the managed connection string (Render Key Value).
+    # Locally we fall back to host/port.
+    REDIS_URL: str = ""
     REDIS_HOST: str = "redis"
     REDIS_PORT: int = 6379
 
@@ -76,6 +79,8 @@ class Settings(BaseSettings):
     @computed_field  # type: ignore[prop-decorator]
     @property
     def redis_url(self) -> str:
+        if self.REDIS_URL:
+            return self.REDIS_URL
         return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/0"
 
     @property

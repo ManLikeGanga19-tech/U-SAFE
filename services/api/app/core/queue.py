@@ -11,6 +11,9 @@ from app.core.config import settings
 
 
 def redis_settings() -> RedisSettings:
+    # Prefer a full DSN (managed Redis / Render Key Value); else host/port (local).
+    if settings.REDIS_URL:
+        return RedisSettings.from_dsn(settings.REDIS_URL)
     return RedisSettings(host=settings.REDIS_HOST, port=settings.REDIS_PORT)
 
 

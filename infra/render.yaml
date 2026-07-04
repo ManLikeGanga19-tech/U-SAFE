@@ -1,7 +1,10 @@
-# Render blueprint — backend half of U-SAFE (API + worker + Postgres + Redis).
-# Frontends (web, admin) deploy separately on Vercel.
-# Docs: https://render.com/docs/blueprint-spec
+# Render blueprint — backend half of U-SAFE (API + worker + Postgres + Key Value).
+# Frontends (web, admin) deploy on Vercel. See DEPLOY.md.
+#
+# In the Render dashboard: New + → Blueprint → connect this repo. Render reads this
+# file. Fill the values marked `sync: false` (secrets) after the services are created.
 services:
+  # ── FastAPI API ──────────────────────────────────────────
   - type: web
     name: usafe-api
     runtime: docker
@@ -10,14 +13,21 @@ services:
     plan: starter
     healthCheckPath: /api/v1/health
     envVars:
-      - key: RUN_MIGRATIONS
-        value: "1"
       - key: ENVIRONMENT
         value: production
+      - key: RUN_MIGRATIONS
+        value: "1"
       - key: JWT_SECRET
         generateValue: true
+      # First admin created on first boot — set a STRONG password in the dashboard.
+      - key: FIRST_ADMIN_EMAIL
+        value: admin@u-safe.co.ke
+      - key: FIRST_ADMIN_PASSWORD
+        sync: false
+      # CORS: set to your Vercel URLs (comma-separated), later your domains.
       - key: CORS_ORIGINS
-        sync: false # set to https://u-safe.co.ke,https://admin.u-safe.co.ke
+        sync: false
+      # Database (Render Postgres)
       - key: POSTGRES_HOST
         fromDatabase: { name: usafe-db, property: host }
       - key: POSTGRES_PORT
@@ -28,20 +38,37 @@ services:
         fromDatabase: { name: usafe-db, property: password }
       - key: POSTGRES_DB
         fromDatabase: { name: usafe-db, property: database }
-      - key: REDIS_HOST
-        fromService: { name: usafe-redis, type: keyvalue, property: host }
-      - key: REDIS_PORT
-        fromService: { name: usafe-redis, type: keyvalue, property: port }
-      # Object storage → Cloudflare R2 (set as secrets in the dashboard)
+      # Redis (Render Key Value) — full connection string
+      - key: REDIS_URL
+        fromService: { name: usafe-redis, type: keyvalue, property: connectionString }
+      # Object storage → Cloudflare R2 (S3 API). Set these in the dashboard.
       - key: S3_ENDPOINT
         sync: false
+      - key: S3_PUBLIC_ENDPOINT
+        sync: false
+      - key: S3_REGION
+        value: auto
       - key: S3_ACCESS_KEY
         sync: false
       - key: S3_SECRET_KEY
         sync: false
       - key: S3_BUCKET
         sync: false
+      # M-Pesa (Daraja). Start "sandbox", flip to "live" when ready.
+      - key: MPESA_MODE
+        value: sandbox
+      - key: MPESA_CONSUMER_KEY
+        sync: false
+      - key: MPESA_CONSUMER_SECRET
+        sync: false
+      - key: MPESA_SHORTCODE
+        value: "174379"
+      - key: MPESA_PASSKEY
+        sync: false
+      - key: MPESA_CALLBACK_URL
+        sync: false # https://<api-url>/api/v1/payments/mpesa/callback
 
+  # ── ARQ worker (same image) ──────────────────────────────
   - type: worker
     name: usafe-worker
     runtime: docker
@@ -50,8 +77,12 @@ services:
     plan: starter
     dockerCommand: arq app.worker.WorkerSettings
     envVars:
+      - key: ENVIRONMENT
+        value: production
       - key: RUN_MIGRATIONS
         value: "0"
+      - key: MPESA_MODE
+        value: sandbox
       - key: JWT_SECRET
         fromService: { name: usafe-api, type: web, envVarKey: JWT_SECRET }
       - key: POSTGRES_HOST
@@ -64,15 +95,14 @@ services:
         fromDatabase: { name: usafe-db, property: password }
       - key: POSTGRES_DB
         fromDatabase: { name: usafe-db, property: database }
-      - key: REDIS_HOST
-        fromService: { name: usafe-redis, type: keyvalue, property: host }
-      - key: REDIS_PORT
-        fromService: { name: usafe-redis, type: keyvalue, property: port }
+      - key: REDIS_URL
+        fromService: { name: usafe-redis, type: keyvalue, property: connectionString }
 
+  # ── Managed Redis ────────────────────────────────────────
   - type: keyvalue
     name: usafe-redis
     plan: starter
-    ipAllowList: [] # only internal services
+    ipAllowList: [] # internal only
 
 databases:
   - name: usafe-db

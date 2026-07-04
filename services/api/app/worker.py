@@ -14,11 +14,11 @@ import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from arq.connections import RedisSettings
 from sqlalchemy import select
 
 from app.core.config import settings
 from app.core.database import SessionLocal
+from app.core.queue import redis_settings
 from app.models.commerce import Payment, PaymentStatus
 from app.services import orders as order_service
 
@@ -74,4 +74,4 @@ async def reconcile_pending(ctx: dict) -> str:
 
 class WorkerSettings:
     functions = [healthcheck, process_mock_payment, reconcile_pending]
-    redis_settings = RedisSettings(host=settings.REDIS_HOST, port=settings.REDIS_PORT)
+    redis_settings = redis_settings()
