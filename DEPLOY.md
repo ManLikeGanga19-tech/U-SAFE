@@ -97,6 +97,39 @@ Import the **same repo twice** (once per app).
 
 ---
 
+## 4b. CI/CD — automated deploys (GitHub Actions)
+The pipeline in `.github/workflows/ci.yml` runs on every push to `main`:
+**build + typecheck web/admin → build the API image → (only if green) deploy** all four
+services via deploy hooks. Nothing ships unless CI passes.
+
+> One-time provisioning (steps 1–4 above) still happens once in the dashboards — that
+> creates the services and does the first deploy. After that, every push to `main`
+> auto-deploys through the pipeline.
+
+**a) Turn off native auto-deploy** (so the pipeline is the only thing that deploys —
+no double builds):
+- Render: already handled — `render.yaml` sets `autoDeploy: false` on the API + worker.
+- Vercel: each project → **Settings → Git** → disable automatic production deployments.
+
+**b) Create deploy hooks:**
+- Render → `usafe-api` → **Settings → Deploy Hook** → copy URL.
+- Render → `usafe-worker` → **Settings → Deploy Hook** → copy URL.
+- Vercel → `usafe-web` → **Settings → Git → Deploy Hooks** → create one for branch
+  `main` → copy URL. Same for `usafe-admin`.
+
+**c) Add them as GitHub repo secrets** (**Settings → Secrets and variables → Actions**):
+| Secret | Value |
+|---|---|
+| `RENDER_DEPLOY_HOOK_API` | Render API deploy-hook URL |
+| `RENDER_DEPLOY_HOOK_WORKER` | Render worker deploy-hook URL |
+| `VERCEL_DEPLOY_HOOK_WEB` | Vercel storefront deploy-hook URL |
+| `VERCEL_DEPLOY_HOOK_ADMIN` | Vercel admin deploy-hook URL |
+
+Done — now `git push` to `main` builds, tests, and deploys everything automatically.
+(Pull requests run the build/typecheck gates only, no deploy.)
+
+---
+
 ## 5. Verify (production smoke test)
 - Storefront loads at the Vercel URL; categories/hero render.
 - Admin: sign in at the admin Vercel URL with `admin@u-safe.co.ke` + your

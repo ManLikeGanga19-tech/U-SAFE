@@ -12,6 +12,7 @@ services:
     dockerContext: ./services/api
     plan: starter
     healthCheckPath: /api/v1/health
+    autoDeploy: false # deploys are triggered by the GitHub Actions pipeline
     envVars:
       - key: ENVIRONMENT
         value: production
@@ -75,6 +76,7 @@ services:
     dockerfilePath: ./services/api/Dockerfile
     dockerContext: ./services/api
     plan: starter
+    autoDeploy: false # deploys are triggered by the GitHub Actions pipeline
     dockerCommand: arq app.worker.WorkerSettings
     envVars:
       - key: ENVIRONMENT

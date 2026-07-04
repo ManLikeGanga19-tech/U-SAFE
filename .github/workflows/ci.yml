@@ -1,11 +1,37 @@
-name: CI
+name: CI/CD
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main]
   pull_request:
 
+# Cancel superseded runs on the same ref.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  # ── Gate 1: frontends typecheck + production build ───────
+  frontend:
+    name: Frontend (web + admin)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --no-frozen-lockfile
+      - name: Typecheck + build
+        run: pnpm turbo run typecheck build
+        env:
+          # placeholder — the real value is set in Vercel per app
+          NEXT_PUBLIC_API_URL: https://api.placeholder.dev
+
+  # ── Gate 2: API imports + Docker image builds ────────────
   api:
     name: API (FastAPI)
     runs-on: ubuntu-latest
@@ -25,22 +51,18 @@ jobs:
       - name: Docker build
         run: docker build -t usafe-api:ci .
 
-  web:
-    name: Frontend (Next.js)
+  # ── Deploy: only on push to main, only if both gates pass ─
+  deploy:
+    name: Deploy (Render + Vercel)
+    needs: [frontend, api]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9.15.9
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile=false
-      - name: Typecheck
-        run: pnpm turbo run typecheck
-      - name: Build
-        run: pnpm turbo run build
-        env:
-          NEXT_PUBLIC_API_URL: http://localhost:8080
+      - name: Deploy API (Render)
+        run: curl -fsS -X POST "${{ secrets.RENDER_DEPLOY_HOOK_API }}"
+      - name: Deploy worker (Render)
+        run: curl -fsS -X POST "${{ secrets.RENDER_DEPLOY_HOOK_WORKER }}"
+      - name: Deploy storefront (Vercel)
+        run: curl -fsS -X POST "${{ secrets.VERCEL_DEPLOY_HOOK_WEB }}"
+      - name: Deploy admin (Vercel)
+        run: curl -fsS -X POST "${{ secrets.VERCEL_DEPLOY_HOOK_ADMIN }}"
