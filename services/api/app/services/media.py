@@ -51,7 +51,7 @@ def upload_bytes(data: bytes, content_type: str, prefix: str, ext: str) -> str:
         key,
         ExtraArgs={"ContentType": content_type},
     )
-    return f"{settings.S3_PUBLIC_ENDPOINT}/{settings.S3_BUCKET}/{key}"
+    return settings.public_object_url(key)
 
 
 def upload_image(fileobj, content_type: str, prefix: str = "products") -> str:
@@ -68,4 +68,4 @@ def upload_image(fileobj, content_type: str, prefix: str = "products") -> str:
         key,
         ExtraArgs={"ContentType": content_type},
     )
-    return f"{settings.S3_PUBLIC_ENDPOINT}/{settings.S3_BUCKET}/{key}"
+    return settings.public_object_url(key)

@@ -44,6 +44,16 @@ class Settings(BaseSettings):
     S3_ACCESS_KEY: str = "usafe_minio"
     S3_SECRET_KEY: str = "usafe_minio_pw"
     S3_BUCKET: str = "usafe-media"
+    # Public base URL that maps to the BUCKET ROOT (Cloudflare R2 r2.dev URL or a
+    # custom domain). When set, public object URLs are "{base}/{key}". When empty
+    # we fall back to path-style "{S3_PUBLIC_ENDPOINT}/{S3_BUCKET}/{key}"
+    # (MinIO in dev, AWS S3 path-style).
+    S3_PUBLIC_BASE_URL: str = ""
+
+    def public_object_url(self, key: str) -> str:
+        if self.S3_PUBLIC_BASE_URL:
+            return f"{self.S3_PUBLIC_BASE_URL.rstrip('/')}/{key}"
+        return f"{self.S3_PUBLIC_ENDPOINT}/{self.S3_BUCKET}/{key}"
 
     # ── Seed admin ──
     FIRST_ADMIN_EMAIL: str = "admin@u-safe.co.ke"
