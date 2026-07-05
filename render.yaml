@@ -58,6 +58,9 @@ services:
         sync: false
       - key: S3_BUCKET
         sync: false
+      # R2 public bucket URL (r2.dev or custom domain) — images are served from here.
+      - key: S3_PUBLIC_BASE_URL
+        sync: false
       # M-Pesa (Daraja). Start "sandbox", flip to "live" when ready.
       - key: MPESA_MODE
         value: sandbox
