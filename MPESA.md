@@ -54,4 +54,4 @@ MPESA_MODE=live            # or sandbox to stage
 MPESA_CALLBACK_URL=https://api.u-safe.co.ke/api/v1/payments/mpesa/callback
 ```
 
-Set the credentials as Render environment secrets (see `infra/render.yaml`, keys marked `sync: false`).
+Set the credentials in `~/usafe/prod.env` on the VPS (see `infra/prod.env.example`). Never commit the real file.

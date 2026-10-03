@@ -46,3 +46,10 @@ npm-debug.log*
 # (App images live in apps/*/public which ARE tracked.)
 /U SAFE KE COMPANY PROFILE/
 /assets/
+
+# U-SAFE VPS prod secrets (local only)
+.prod.env.local
+
+# CI deploy key (local only)
+.ci_deploy_key
+.ci_deploy_key.pub

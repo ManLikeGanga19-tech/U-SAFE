@@ -76,7 +76,7 @@ apps/web        Next.js storefront
 apps/admin      Next.js admin control plane
 services/api    FastAPI backend (models, auth, catalog, migrations, seed)
 packages/config Shared Tailwind preset + design tokens (no-radius enforced)
-infra/          docker-compose.dev.yml, render.yaml, frontend dev Dockerfile
+infra/          docker-compose.dev.yml, docker-compose.prod.yml (VPS), caddy/
 ```
 
 ## Ports
