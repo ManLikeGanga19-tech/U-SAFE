@@ -33,8 +33,11 @@ export function BuyBox({ product }: { product: Product }) {
   return (
     <div className="border-2 border-ink-900 bg-white">
       <div className="border-b-2 border-ink-900 bg-ink-900 p-5">
-        <div className="font-display text-4xl font-black text-white">
-          {variant ? formatKES(variant.price_kes) : "—"}
+        <div className="flex items-baseline gap-2">
+          <span className="font-display text-4xl font-black text-white">
+            {variant ? formatKES(variant.price_kes) : "—"}
+          </span>
+          <span className="font-mono text-xs uppercase text-ink-400">excl. VAT</span>
         </div>
         {variant?.compare_at_kes ? (
           <div className="mt-1 font-mono text-sm text-ink-400 line-through">

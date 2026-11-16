@@ -190,12 +190,21 @@ export interface ContentBlock {
   sort_order: number;
 }
 export type OrderStatus = "pending" | "paid" | "processing" | "fulfilled" | "cancelled" | "refunded";
+export type PaymentMethod = "mpesa_stk" | "mpesa_paybill" | "bank_transfer";
+export const PAYMENT_METHOD_LABEL: Record<PaymentMethod, string> = {
+  mpesa_stk: "M-Pesa prompt",
+  mpesa_paybill: "M-Pesa Paybill",
+  bank_transfer: "Bank transfer",
+};
 export interface OrderListItem {
   id: string;
   number: string;
   status: OrderStatus;
   total_kes: number;
   contact_name: string | null;
+  company_name: string | null;
+  payment_method: PaymentMethod;
+  fulfilment: "pickup" | "delivery";
   payment_status: string | null;
   item_count: number;
   created_at: string;
@@ -212,10 +221,20 @@ export interface Order {
   number: string;
   status: OrderStatus;
   subtotal_kes: number;
+  vat_kes: number;
+  vat_rate: number;
   total_kes: number;
+  fulfilment: "pickup" | "delivery";
+  payment_method: PaymentMethod;
+  payment_reference: string | null;
+  payment_instructions: { due_at: string | null } | null;
+  pickup_address: string | null;
   contact_name: string | null;
   contact_phone: string | null;
   contact_email: string | null;
+  company_name: string | null;
+  kra_pin: string | null;
+  po_number: string | null;
   shipping_address: Record<string, string>;
   items: OrderLine[];
   payment: {

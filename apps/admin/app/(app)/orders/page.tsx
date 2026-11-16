@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { api, formatKES, OrderListItem, Page } from "@/lib/api";
+import { api, formatKES, OrderListItem, Page, PAYMENT_METHOD_LABEL } from "@/lib/api";
 import { Button, PageHead, inputCls } from "@/components/ui";
 
 const STATUS_STYLE: Record<string, string> = {
@@ -66,6 +66,7 @@ export default function OrdersPage() {
               <th className="px-4 py-3">Customer</th>
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3">Payment</th>
+              <th className="px-4 py-3">Method</th>
               <th className="px-4 py-3 text-right">Items</th>
               <th className="px-4 py-3 text-right">Total</th>
               <th className="px-4 py-3">Placed</th>
@@ -79,9 +80,16 @@ export default function OrdersPage() {
                     {o.number}
                   </Link>
                 </td>
-                <td className="px-4 py-3 text-ink-700">{o.contact_name || "—"}</td>
+                <td className="px-4 py-3 text-ink-700">
+                  {o.contact_name || "—"}
+                  {o.company_name && <span className="block font-mono text-[11px] text-ink-400">{o.company_name}</span>}
+                </td>
                 <td className="px-4 py-3"><Badge status={o.status} /></td>
                 <td className="px-4 py-3">{o.payment_status ? <Badge status={o.payment_status} /> : "—"}</td>
+                <td className="px-4 py-3 font-mono text-xs text-ink-500">
+                  {PAYMENT_METHOD_LABEL[o.payment_method] ?? o.payment_method}
+                  <span className="block text-[11px] text-ink-400">{o.fulfilment}</span>
+                </td>
                 <td className="px-4 py-3 text-right font-mono">{o.item_count}</td>
                 <td className="px-4 py-3 text-right font-mono font-bold">{formatKES(o.total_kes)}</td>
                 <td className="px-4 py-3 font-mono text-xs text-ink-400">
@@ -90,7 +98,7 @@ export default function OrdersPage() {
               </tr>
             ))}
             {data && data.items.length === 0 && (
-              <tr><td colSpan={7} className="px-4 py-10 text-center font-mono text-sm text-ink-400">No orders yet.</td></tr>
+              <tr><td colSpan={8} className="px-4 py-10 text-center font-mono text-sm text-ink-400">No orders yet.</td></tr>
             )}
           </tbody>
         </table>

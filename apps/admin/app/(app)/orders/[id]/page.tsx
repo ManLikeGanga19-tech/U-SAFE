@@ -2,7 +2,7 @@
 
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { api, formatKES, Order, OrderStatus } from "@/lib/api";
+import { api, formatKES, Order, OrderStatus, PAYMENT_METHOD_LABEL } from "@/lib/api";
 import { Button, PageHead, SelectField, Toast } from "@/components/ui";
 
 const NEXT_STATUS: OrderStatus[] = ["pending", "paid", "processing", "fulfilled", "cancelled", "refunded"];
@@ -75,6 +75,20 @@ export default function OrderDetailPage() {
               ))}
             </tbody>
           </table>
+          <dl className="space-y-1.5 border-t-2 border-ink-900 p-5 font-mono text-sm">
+            <div className="flex justify-between">
+              <dt className="text-ink-500">Subtotal (excl. VAT)</dt>
+              <dd>{formatKES(order.subtotal_kes)}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-ink-500">VAT {Math.round((order.vat_rate || 0) * 100)}%</dt>
+              <dd>{formatKES(order.vat_kes || 0)}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-ink-500">{order.fulfilment === "pickup" ? "Pickup" : "Delivery"}</dt>
+              <dd>{order.fulfilment === "pickup" ? "Free" : "Quote by phone (not charged)"}</dd>
+            </div>
+          </dl>
           <div className="flex items-center justify-between border-t-2 border-ink-900 p-5">
             <span className="font-display uppercase tracking-wideCaps">Total</span>
             <span className="font-display text-2xl font-black">{formatKES(order.total_kes)}</span>
@@ -97,8 +111,22 @@ export default function OrderDetailPage() {
 
           <div className="border-2 border-ink-900 bg-white p-5">
             <h3 className="font-display text-xs font-bold uppercase tracking-wideCaps text-royal-600">Payment</h3>
+            {order.status === "pending" && order.payment_method !== "mpesa_stk" && (
+              <p className="mt-3 border-2 border-royal-600 bg-royal-50 p-3 text-xs text-ink-800">
+                {order.payment_reference
+                  ? `Customer reports paying with code ${order.payment_reference}. Check your statement, then set the status to "paid".`
+                  : "Awaiting the customer's payment. Once it reaches your account, set the status to \"paid\"."}
+                {order.payment_instructions?.due_at && !order.payment_reference && (
+                  <span className="mt-1 block text-ink-500">
+                    Auto-cancels {new Date(order.payment_instructions.due_at).toLocaleString("en-KE")} if unpaid.
+                  </span>
+                )}
+              </p>
+            )}
             <dl className="mt-3 space-y-1.5 font-mono text-xs">
-              <Row k="Method" v={order.payment?.provider || "—"} />
+              <Row k="Chosen" v={PAYMENT_METHOD_LABEL[order.payment_method] ?? order.payment_method} />
+              <Row k="Customer ref" v={order.payment_reference || "—"} />
+              <Row k="Provider" v={order.payment?.provider || "—"} />
               <Row k="Status" v={order.payment?.status || "—"} />
               <Row k="Amount" v={order.payment ? formatKES(order.payment.amount_kes) : "—"} />
               <Row k="Receipt" v={order.payment?.mpesa_receipt || "—"} />
@@ -111,8 +139,17 @@ export default function OrderDetailPage() {
               <Row k="Name" v={order.contact_name || "—"} />
               <Row k="Email" v={order.contact_email || "—"} />
               <Row k="Phone" v={order.contact_phone || "—"} />
-              <Row k="City" v={order.shipping_address?.city || "—"} />
-              <Row k="Address" v={order.shipping_address?.address || "—"} />
+              <Row k="Company" v={order.company_name || "—"} />
+              <Row k="KRA PIN" v={order.kra_pin || "—"} />
+              <Row k="PO no." v={order.po_number || "—"} />
+              <Row k="Fulfilment" v={order.fulfilment === "pickup" ? "Pickup" : "Delivery"} />
+              {order.fulfilment === "delivery" && (
+                <>
+                  <Row k="City" v={order.shipping_address?.city || "—"} />
+                  <Row k="Address" v={order.shipping_address?.address || "—"} />
+                </>
+              )}
+              <Row k="Notes" v={order.shipping_address?.notes || "—"} />
             </dl>
           </div>
         </div>
