@@ -37,6 +37,16 @@ class Settings(BaseSettings):
     REDIS_HOST: str = "redis"
     REDIS_PORT: int = 6379
 
+    # ── Media storage ──
+    # "local": files live on this server's disk (a Docker volume on the VPS) and
+    #          the API serves them at /media. "s3": MinIO (dev) / R2 / AWS.
+    STORAGE_BACKEND: str = "s3"
+    MEDIA_ROOT: str = "/data/media"
+    # Public URL that maps to MEDIA_ROOT, e.g. https://api.u-safe.co.ke/media
+    MEDIA_URL_BASE: str = ""
+    # Uploaded photos are downscaled to fit this box and re-encoded as WebP.
+    MEDIA_MAX_DIMENSION: int = 1600
+
     # ── Object storage (S3 / MinIO / R2) ──
     S3_ENDPOINT: str = "http://minio:9000"
     S3_PUBLIC_ENDPOINT: str = "http://localhost:9002"
@@ -57,6 +67,13 @@ class Settings(BaseSettings):
         R2 values were never set (e.g. blank in prod.env), and every upload would
         fail with an obscure connection error.
         """
+        if self.STORAGE_BACKEND == "local":
+            problems = []
+            if not self.MEDIA_URL_BASE:
+                problems.append("MEDIA_URL_BASE is missing (e.g. https://api.u-safe.co.ke/media)")
+            if not self.MEDIA_ROOT:
+                problems.append("MEDIA_ROOT is missing")
+            return problems
         if self.ENVIRONMENT == "development":
             return []
         problems = []
@@ -76,6 +93,8 @@ class Settings(BaseSettings):
         return problems
 
     def public_object_url(self, key: str) -> str:
+        if self.STORAGE_BACKEND == "local":
+            return f"{self.MEDIA_URL_BASE.rstrip('/')}/{key}"
         if self.S3_PUBLIC_BASE_URL:
             return f"{self.S3_PUBLIC_BASE_URL.rstrip('/')}/{key}"
         return f"{self.S3_PUBLIC_ENDPOINT}/{self.S3_BUCKET}/{key}"

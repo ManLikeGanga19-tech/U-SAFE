@@ -30,6 +30,8 @@ async def upload(file: UploadFile = File(...)) -> dict:
 
     try:
         url = media.upload_image(io.BytesIO(data), file.content_type)
+    except media.InvalidImage as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
     except media.StorageNotConfigured as exc:
         log.error("upload refused: %s", exc)
         raise HTTPException(status_code=503, detail=str(exc))
