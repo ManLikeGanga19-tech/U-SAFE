@@ -63,7 +63,7 @@ export function ImageUploader({
         ))}
         <label className="flex h-24 w-24 cursor-pointer items-center justify-center border-2 border-dashed border-ink-400 bg-white text-center font-display text-xs font-bold uppercase tracking-wideCaps text-ink-500 hover:border-ink-900 hover:text-ink-900">
           {busy ? "…" : "+ Upload"}
-          <input type="file" accept="image/*" className="hidden" onChange={onFile} disabled={busy} />
+          <input type="file" accept="image/jpeg,image/png,image/webp,image/avif" className="hidden" onChange={onFile} disabled={busy} />
         </label>
       </div>
       {err && <p className="mt-2 font-mono text-xs text-hivis-700">{err}</p>}

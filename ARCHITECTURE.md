@@ -128,9 +128,8 @@ usafe/
 │   └── config/             # shared tailwind tokens, tsconfig, eslint
 ├── infra/
 │   ├── docker-compose.dev.yml     # local dev: api, worker, postgres, redis, minio
-│   ├── docker-compose.vps.yml     # future self-hosted prod (+ Caddy)
-│   ├── Caddyfile                  # used only on the VPS
-│   └── render.yaml                # Render blueprint (api + worker + db + redis)
+│   ├── docker-compose.prod.yml    # VPS prod: api, worker, postgres, redis (no ports)
+│   └── caddy/                     # edge site block for the shared VPS Caddy
 └── .github/workflows/
 ```
 

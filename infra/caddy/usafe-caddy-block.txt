@@ -1,0 +1,16 @@
+# U-SAFE API — add this block to the wifios repo's deploy/Caddyfile.
+#
+# It must live in the wifios repo (committed) because GitHub Actions overwrites
+# ~/wifios/deploy/Caddyfile on every wifios deploy — a block edited only on the
+# server would silently disappear.
+#
+# Caddy reaches U-SAFE over the shared Docker network by the API's container name.
+# For that to resolve, the usafe_api container must be joined to the SAME network
+# as the Caddy container (see `web` network in infra/docker-compose.prod.yml).
+#
+# Caddy auto-issues TLS for this hostname once the api.u-safe.co.ke A record points
+# at the server (HTTP-01). No cert config needed here.
+
+api.u-safe.co.ke {
+	reverse_proxy usafe-prod-api:8000
+}

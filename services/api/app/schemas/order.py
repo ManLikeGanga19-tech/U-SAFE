@@ -20,6 +20,10 @@ class CheckoutIn(BaseModel):
     mpesa_phone: str = Field(description="Safaricom number, e.g. 2547XXXXXXXX or 07XXXXXXXX")
 
 
+class RetryPaymentIn(BaseModel):
+    mpesa_phone: str = Field(description="Safaricom number, e.g. 07XXXXXXXX")
+
+
 class CheckoutResult(BaseModel):
     order_id: uuid.UUID
     order_number: str
@@ -58,6 +62,7 @@ class OrderOut(BaseModel):
     shipping_address: dict
     items: list[OrderLineOut]
     payment: PaymentOut | None
+    can_retry_payment: bool = False
     created_at: datetime
 
 

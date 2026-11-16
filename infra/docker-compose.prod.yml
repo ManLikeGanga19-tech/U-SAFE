@@ -1,0 +1,139 @@
+# U-SAFE KE — production stack for the VPS (API + worker + Postgres + Redis).
+# SHARES the box with wifios. Frontends stay on Vercel. Media (product photos,
+# brand logos, quote PDFs) lives on this box in the usafe-prod-media volume and
+# is served by the API at https://api.u-safe.co.ke/media/...
+# See DEPLOY-VPS.md.
+#
+# Layout on the server (deploy user's home):
+#   ~/usafe            ← this repo (git clone)
+#   ~/usafe/prod.env   ← secrets (NOT in git), copied from infra/prod.env.example
+#
+# Run from ~/usafe:
+#   GIT_COMMIT=$(git rev-parse --short HEAD) \
+#     docker compose -f infra/docker-compose.prod.yml up -d --build
+#
+# Co-tenancy rules (do not break wifios):
+#   - Publishes NO host ports. wifios's Caddy owns 80/443.
+#   - The API joins wifios's existing Docker network (external, see `web` below) so
+#     Caddy can reach it by container name `usafe-prod-api:8000`. Verify the real
+#     network name on the box first:  docker network ls   (then set it below).
+#   - Postgres/Redis/worker stay on a PRIVATE network only — not reachable by wifios.
+#   - Service names are unique (usafe_*) so they can't collide with wifios's own
+#     service aliases (e.g. wifios's `api`) on the shared network.
+#   - Own compose project name, own volumes, per-container mem_limit, log rotation.
+name: usafe-prod
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-db-env: &db-env
+  POSTGRES_HOST: usafe_db
+  POSTGRES_PORT: "5432"
+  REDIS_URL: redis://usafe_redis:6379/0
+  GIT_COMMIT: ${GIT_COMMIT:-dev}
+
+services:
+  usafe_db:
+    image: postgres:16-alpine
+    container_name: usafe-prod-postgres
+    restart: unless-stopped
+    env_file: ../prod.env
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    networks: [internal]
+    mem_limit: 512m
+    logging: *logging
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  usafe_redis:
+    image: redis:7.4-alpine
+    container_name: usafe-prod-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "128mb", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - redis_data:/data
+    networks: [internal]
+    mem_limit: 192m
+    logging: *logging
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  usafe_api:
+    build:
+      context: ../services/api
+    image: usafe-prod-api:latest
+    container_name: usafe-prod-api
+    restart: unless-stopped
+    env_file: ../prod.env
+    environment:
+      <<: *db-env
+      RUN_MIGRATIONS: "1"
+      STORAGE_BACKEND: local
+      MEDIA_ROOT: /data/media
+      MEDIA_URL_BASE: ${MEDIA_URL_BASE:-https://api.u-safe.co.ke/media}
+    volumes:
+      - media_data:/data/media
+    command:
+      ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000",
+       "--workers", "2", "--proxy-headers", "--forwarded-allow-ips", "*"]
+    # NO ports: Caddy (on the shared network) reaches us at usafe-prod-api:8000.
+    depends_on:
+      usafe_db:
+        condition: service_healthy
+      usafe_redis:
+        condition: service_healthy
+    networks: [internal, web]
+    mem_limit: 768m
+    logging: *logging
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+
+  usafe_worker:
+    image: usafe-prod-api:latest
+    container_name: usafe-prod-worker
+    restart: unless-stopped
+    env_file: ../prod.env
+    environment:
+      <<: *db-env
+      RUN_MIGRATIONS: "0"
+    command: ["arq", "app.worker.WorkerSettings"]
+    depends_on:
+      usafe_api:
+        condition: service_healthy
+    networks: [internal]
+    mem_limit: 384m
+    logging: *logging
+
+networks:
+  internal:
+    name: usafe-prod-net
+  # U-SAFE's OWN edge network. The ShuleHQ edge container (sms-caddy) gets attached
+  # to this in Phase B so it can reach usafe-prod-api:8000. Nothing else of ours
+  # joins any other project's network. Create it once before first `up`:
+  #   docker network create usafe-edge-net
+  web:
+    external: true
+    name: usafe-edge-net
+
+volumes:
+  pg_data:
+    name: usafe-prod-pg-data
+  redis_data:
+    name: usafe-prod-redis-data
+  # Uploaded media. Back it up with the database (see DEPLOY-VPS.md).
+  media_data:
+    name: usafe-prod-media
