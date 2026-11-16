@@ -61,7 +61,7 @@ export function ProductCard({ product }: { product: Product }) {
               {v ? formatKES(v.price_kes) : "—"}
             </div>
             {v && (
-              <div className="font-mono text-[10px] text-ink-400">{v.sku}</div>
+              <div className="font-mono text-[10px] text-ink-400">{v.sku} · excl. VAT</div>
             )}
           </div>
           <span className="font-display text-xs font-bold uppercase tracking-wideCaps text-signal-600 group-hover:text-signal-500">

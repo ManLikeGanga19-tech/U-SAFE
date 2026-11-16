@@ -105,6 +105,23 @@ class Settings(BaseSettings):
     # Seed demo products? Keep OFF in production (real catalog is imported/entered).
     SEED_DEMO_PRODUCTS: bool = True
 
+    # ── Checkout ──
+    # Catalogue prices exclude VAT; this rate is added at checkout.
+    VAT_RATE: float = 0.16
+    # Unpaid Paybill / bank-transfer orders hold stock this long, then auto-cancel.
+    MANUAL_PAYMENT_HOLD_DAYS: int = 3
+    PICKUP_ADDRESS: str = "Ashray Industrial Park, Nairobi"
+    PICKUP_HOURS: str = ""
+    # M-Pesa Paybill shown for manual payment (account no. = order number).
+    # Leave blank to hide the option.
+    PAYBILL_NUMBER: str = ""
+    # Bank transfer details. The option is hidden until BANK_ACCOUNT_NUMBER is set.
+    BANK_NAME: str = ""
+    BANK_ACCOUNT_NAME: str = ""
+    BANK_ACCOUNT_NUMBER: str = ""
+    BANK_BRANCH: str = ""
+    BANK_SWIFT: str = ""
+
     # ── M-Pesa (Safaricom Daraja) ──
     # mode: "mock" (local dev simulator) | "sandbox" | "live"
     MPESA_MODE: str = "mock"

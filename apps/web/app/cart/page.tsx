@@ -2,9 +2,13 @@
 
 import Link from "next/link";
 import { formatKES, useCart } from "@/lib/cart";
+import { useCheckoutOptions, vatFor } from "@/lib/checkout";
 
 export default function CartPage() {
   const { cart, loading, updateItem, removeItem } = useCart();
+  const { vat_rate } = useCheckoutOptions();
+  const vat = vatFor(cart.subtotal_kes, vat_rate);
+  const shortStock = cart.items.some((l) => l.quantity > l.available);
 
   if (loading) {
     return <div className="shell py-16 font-mono text-sm text-ink-400">Loading cart…</div>;
@@ -105,19 +109,36 @@ export default function CartPage() {
 
         {/* Summary */}
         <aside className="h-fit border-2 border-ink-900 bg-white">
-          <div className="border-b-2 border-ink-900 bg-ink-900 p-5 text-white">
+          <dl className="space-y-2 p-5 text-sm">
+            <div className="flex justify-between">
+              <dt className="text-ink-500">Subtotal (excl. VAT)</dt>
+              <dd className="font-mono">{formatKES(cart.subtotal_kes)}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-ink-500">VAT {Math.round(vat_rate * 100)}%</dt>
+              <dd className="font-mono">{formatKES(vat)}</dd>
+            </div>
+          </dl>
+          <div className="border-y-2 border-ink-900 bg-ink-900 p-5 text-white">
             <div className="flex items-center justify-between">
-              <span className="font-display uppercase tracking-wideCaps">Subtotal</span>
-              <span className="font-display text-2xl font-black">{formatKES(cart.subtotal_kes)}</span>
+              <span className="font-display uppercase tracking-wideCaps">Total</span>
+              <span className="font-display text-2xl font-black">{formatKES(cart.subtotal_kes + vat)}</span>
             </div>
           </div>
           <div className="p-5">
             <p className="font-mono text-xs text-ink-400">
-              Shipping calculated at fulfilment. Pay securely with M-Pesa.
+              Free pickup in Nairobi, or delivery quoted by phone. Choose how to
+              pay at checkout.
             </p>
-            <Link href="/checkout" className="btn-signal mt-4 w-full">
-              Checkout →
-            </Link>
+            {shortStock ? (
+              <p className="mt-4 text-sm font-medium text-hivis-700">
+                Reduce the highlighted quantities to continue.
+              </p>
+            ) : (
+              <Link href="/checkout" className="btn-signal mt-4 w-full justify-center">
+                Checkout →
+              </Link>
+            )}
             <Link href="/catalog" className="mt-3 block text-center font-mono text-xs text-royal-600 hover:underline">
               ← Continue shopping
             </Link>

@@ -16,18 +16,24 @@ from __future__ import annotations
 import secrets
 import uuid
 from collections import defaultdict
+from datetime import datetime, timedelta, timezone
+from decimal import ROUND_HALF_UP, Decimal
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.models.catalog import ProductStatus, ProductVariant
 from app.models.commerce import (
     Cart,
     CartItem,
+    Fulfilment,
     Order,
     OrderItem,
     OrderStatus,
     Payment,
+    PaymentMethod,
+    PaymentProvider,
     PaymentStatus,
 )
 from app.models.inventory import InventoryItem, StockMovement, StockReason
@@ -155,6 +161,48 @@ def release_stock(
         )
 
 
+# ── Money / options ───────────────────────────────────────
+def _money(x) -> Decimal:
+    return Decimal(str(x)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+
+def compute_vat(subtotal) -> Decimal:
+    return _money(_money(subtotal) * Decimal(str(settings.VAT_RATE)))
+
+
+def enabled_payment_methods() -> list[PaymentMethod]:
+    methods = [PaymentMethod.mpesa_stk]
+    if settings.PAYBILL_NUMBER:
+        methods.append(PaymentMethod.mpesa_paybill)
+    if settings.BANK_ACCOUNT_NUMBER:
+        methods.append(PaymentMethod.bank_transfer)
+    return methods
+
+
+def payment_instructions(order: Order) -> dict | None:
+    """What a Paybill / bank customer needs to pay. None for STK orders or once
+    the order no longer awaits payment."""
+    method = PaymentMethod(order.payment_method)
+    if not method.is_manual or order.status != OrderStatus.pending:
+        return None
+    base = {
+        "method": method,
+        "amount_kes": float(order.total_kes),
+        "reference": order.number,
+        "due_at": order.payment_due_at,
+    }
+    if method == PaymentMethod.mpesa_paybill:
+        return {**base, "paybill": settings.PAYBILL_NUMBER}
+    return {
+        **base,
+        "bank_name": settings.BANK_NAME or None,
+        "account_name": settings.BANK_ACCOUNT_NAME or None,
+        "account_number": settings.BANK_ACCOUNT_NUMBER,
+        "branch": settings.BANK_BRANCH or None,
+        "swift": settings.BANK_SWIFT or None,
+    }
+
+
 # ── Checkout ──────────────────────────────────────────────
 def create_from_cart(
     db: Session,
@@ -164,6 +212,11 @@ def create_from_cart(
     contact_email: str,
     contact_phone: str,
     shipping_address: dict,
+    fulfilment: Fulfilment = Fulfilment.delivery,
+    payment_method: PaymentMethod = PaymentMethod.mpesa_stk,
+    company_name: str | None = None,
+    kra_pin: str | None = None,
+    po_number: str | None = None,
 ) -> Order:
     items = list(db.scalars(select(CartItem).where(CartItem.cart_id == cart.id)))
     if not items:
@@ -176,11 +229,20 @@ def create_from_cart(
         contact_email=contact_email,
         contact_phone=contact_phone,
         shipping_address=shipping_address,
+        fulfilment=fulfilment.value,
+        payment_method=payment_method.value,
+        company_name=company_name,
+        kra_pin=kra_pin,
+        po_number=po_number,
     )
+    if payment_method.is_manual:
+        order.payment_due_at = datetime.now(timezone.utc) + timedelta(
+            days=settings.MANUAL_PAYMENT_HOLD_DAYS
+        )
     db.add(order)
     db.flush()
 
-    subtotal = 0.0
+    subtotal = Decimal("0")
     for it in items:
         variant = db.get(ProductVariant, it.variant_id)
         if (
@@ -189,7 +251,7 @@ def create_from_cart(
             or variant.product.status != ProductStatus.published
         ):
             raise StockError("A product in your cart is no longer available")
-        price = float(variant.price_kes)
+        price = _money(variant.price_kes)
         subtotal += price * it.quantity
         db.add(
             OrderItem(
@@ -203,8 +265,10 @@ def create_from_cart(
             )
         )
 
-    order.subtotal_kes = subtotal
-    order.total_kes = subtotal  # shipping/tax added in a later phase
+    # Catalogue prices exclude VAT. Delivery is quoted by phone, not charged here.
+    order.subtotal_kes = _money(subtotal)
+    order.vat_kes = compute_vat(subtotal)
+    order.total_kes = order.subtotal_kes + order.vat_kes
     db.flush()
     db.refresh(order, attribute_names=["items"])
 
@@ -299,8 +363,27 @@ def set_status(
         raise OrderTransitionError(f"Can't change an order from {old.value} to {new.value}")
 
     if new == OrderStatus.paid:
-        # Staff confirming an offline/manual payment: make sure stock is taken.
+        # Staff confirming an offline/manual payment: make sure stock is taken
+        # and leave a payment record (with the customer's reference) behind.
         reserve_stock(db, order, check=False)
+        if not db.scalar(
+            select(func.count())
+            .select_from(Payment)
+            .where(Payment.order_id == order.id, Payment.status == PaymentStatus.success)
+        ):
+            db.add(
+                Payment(
+                    order_id=order.id,
+                    provider=PaymentProvider.manual,
+                    status=PaymentStatus.success,
+                    amount_kes=order.total_kes,
+                    mpesa_receipt=order.payment_reference,
+                    raw_callback={
+                        "confirmed_by": str(actor.id) if actor else None,
+                        "method": order.payment_method,
+                    },
+                )
+            )
     elif new == OrderStatus.cancelled:
         release_stock(db, order, note="Order cancelled", actor=actor)
     elif new == OrderStatus.refunded and old != OrderStatus.fulfilled:
@@ -311,6 +394,55 @@ def set_status(
         )
     order.status = new
     db.flush()
+
+
+# ── Manual payments ───────────────────────────────────────
+def set_payment_reference(db: Session, order: Order, reference: str) -> None:
+    if not PaymentMethod(order.payment_method).is_manual:
+        raise OrderTransitionError("This order is paid by M-Pesa prompt")
+    if order.status != OrderStatus.pending:
+        raise OrderTransitionError("This order is no longer awaiting payment")
+    order.payment_reference = reference
+    db.flush()
+
+
+def expire_unpaid_manual_orders(db: Session, now: datetime | None = None) -> int:
+    """Cancel Paybill/bank orders past their due date so their stock goes back.
+
+    Orders where the customer already reported a transaction code are left for
+    staff to verify, and so are orders with an M-Pesa prompt in flight.
+    """
+    now = now or datetime.now(timezone.utc)
+    orders = list(
+        db.scalars(
+            select(Order)
+            .where(
+                Order.status == OrderStatus.pending,
+                Order.payment_method != PaymentMethod.mpesa_stk.value,
+                Order.payment_due_at.is_not(None),
+                Order.payment_due_at < now,
+                Order.payment_reference.is_(None),
+            )
+            .with_for_update(skip_locked=True)
+        )
+    )
+    expired = 0
+    for order in orders:
+        live = db.scalar(
+            select(func.count())
+            .select_from(Payment)
+            .where(
+                Payment.order_id == order.id,
+                Payment.status.in_([PaymentStatus.pending, PaymentStatus.success]),
+            )
+        )
+        if live:
+            continue
+        release_stock(db, order, note="Unpaid, payment window expired")
+        order.status = OrderStatus.cancelled
+        expired += 1
+    db.flush()
+    return expired
 
 
 # ── Locking helpers ───────────────────────────────────────
