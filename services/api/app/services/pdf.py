@@ -54,7 +54,7 @@ class QuotePDF(FPDF):
             0,
             4,
             "U-SAFE KE  ·  Ashray Industrial Park, P.O. Box 59553-00200, Nairobi  ·  "
-            "info@usafeke.com  ·  +254 748 846635\n"
+            "info@u-safe.co.ke  ·  +254 748 846635\n"
             "Prices in KES, valid 14 days from issue, exclusive of VAT unless stated.",
             align="C",
         )

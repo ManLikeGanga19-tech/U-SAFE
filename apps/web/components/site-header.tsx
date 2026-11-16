@@ -20,7 +20,7 @@ export function SiteHeader() {
             Ensuring you are safe
           </span>
           <span className="hidden sm:block text-ink-200">
-            Nairobi, Kenya · +254 748 846635 · info@usafeke.com
+            Nairobi, Kenya · +254 748 846635 · info@u-safe.co.ke
           </span>
         </div>
       </div>

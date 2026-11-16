@@ -81,7 +81,7 @@ export function MobileNav({ items }: { items: { label: string; href: string }[] 
                 <div className="text-center font-mono text-xs text-ink-500">
                   <a href="tel:+254748846635" className="hover:text-ink-900">+254 748 846635</a>
                   <span className="mx-1">·</span>
-                  <a href="mailto:info@usafeke.com" className="hover:text-ink-900">info@usafeke.com</a>
+                  <a href="mailto:info@u-safe.co.ke" className="hover:text-ink-900">info@u-safe.co.ke</a>
                 </div>
               </div>
             </motion.aside>
