@@ -34,6 +34,17 @@ jobs:
   api:
     name: API (FastAPI)
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: usafe
+          POSTGRES_PASSWORD: usafe_test_pw
+          POSTGRES_DB: usafe_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U usafe -d usafe_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
     defaults:
       run:
         working-directory: services/api
@@ -43,10 +54,18 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-          cache-dependency-path: services/api/requirements.txt
-      - run: pip install -r requirements.txt
+          cache-dependency-path: services/api/requirements*.txt
+      - run: pip install -r requirements.txt -r requirements-dev.txt
       - name: Import check (app boots)
         run: python -c "import app.main; import app.models; print('api imports ok')"
+      - name: Tests (orders, payments, stock, uploads)
+        run: pytest -q
+        env:
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: "5432"
+          POSTGRES_USER: usafe
+          POSTGRES_PASSWORD: usafe_test_pw
+          POSTGRES_DB: usafe_test
       - name: Docker build
         run: docker build -t usafe-api:ci .
 
@@ -83,12 +102,15 @@ jobs:
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           PORT: ${{ secrets.VPS_SSH_PORT || '22' }}
+        # -R keeps relative paths, so services/api lands in ~/usafe/services/api
+        # (where docker-compose.prod.yml builds from). Without it rsync put the
+        # code in ~/usafe/api and every deploy silently rebuilt the OLD code.
         run: |
-          rsync -az --delete \
+          rsync -azR --delete \
             --exclude '__pycache__' --exclude '*.pyc' --exclude '.venv' \
             --exclude '.pytest_cache' --exclude '.ruff_cache' --exclude '.mypy_cache' \
             -e "ssh -i ~/.ssh/id_deploy -p $PORT" \
-            services/api infra \
+            ./services/api ./infra \
             "deploy@$VPS_HOST:~/usafe/"
 
       - name: Build + restart the stack

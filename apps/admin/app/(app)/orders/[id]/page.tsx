@@ -31,6 +31,11 @@ export default function OrderDetailPage() {
       setOrder(o);
       setToast("Order updated");
       setTimeout(() => setToast(null), 2000);
+    } catch (e) {
+      // e.g. 409 "Can't change an order from fulfilled to pending"
+      setToast(e instanceof Error ? e.message : "Update failed");
+      setTimeout(() => setToast(null), 4000);
+      if (order) setStatus(order.status);
     } finally {
       setSaving(false);
     }

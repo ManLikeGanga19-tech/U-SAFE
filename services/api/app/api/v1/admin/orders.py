@@ -14,6 +14,7 @@ from app.models.user import User
 from app.schemas.common import Page
 from app.schemas.order import OrderAdminListItem, OrderOut, OrderStatusUpdate
 from app.services import audit
+from app.services import orders as order_service
 
 router = APIRouter()
 
@@ -70,10 +71,18 @@ def update_status(
     db: Session = Depends(get_db),
     actor: User = Depends(require_staff),
 ) -> OrderOut:
-    order = db.get(Order, order_id)
+    order = db.scalar(select(Order).where(Order.id == order_id).with_for_update())
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
-    order.status = payload.status
-    audit.record(db, actor, "order.status", "order", order.id, {"status": payload.status.value})
+    previous = order.status
+    try:
+        order_service.set_status(db, order, payload.status, actor)
+    except order_service.OrderTransitionError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=exc.message)
+    audit.record(
+        db, actor, "order.status", "order", order.id,
+        {"status": payload.status.value, "from": previous.value},
+    )
     db.commit()
     return serialize_order(db, order)

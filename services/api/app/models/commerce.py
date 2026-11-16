@@ -92,7 +92,10 @@ class Order(UUIDMixin, TimestampMixin, Base):
     items: Mapped[list["OrderItem"]] = relationship(
         back_populates="order", cascade="all, delete-orphan"
     )
-    payments: Mapped[list["Payment"]] = relationship(back_populates="order")
+    # Oldest → newest, so payments[-1] is the latest attempt.
+    payments: Mapped[list["Payment"]] = relationship(
+        back_populates="order", order_by=lambda: [Payment.created_at, Payment.id]
+    )
 
 
 class OrderItem(UUIDMixin, TimestampMixin, Base):

@@ -19,24 +19,48 @@ ALLOWED_TYPES = {
 }
 
 
+class StorageNotConfigured(RuntimeError):
+    pass
+
+
 @lru_cache
 def _client():
+    problems = settings.storage_problems()
+    if problems:
+        raise StorageNotConfigured(
+            "Media storage is not configured on the server: " + "; ".join(problems)
+        )
     return boto3.client(
         "s3",
         endpoint_url=settings.S3_ENDPOINT,
         aws_access_key_id=settings.S3_ACCESS_KEY,
         aws_secret_access_key=settings.S3_SECRET_KEY,
         region_name=settings.S3_REGION,
-        config=Config(signature_version="s3v4"),
+        config=Config(
+            signature_version="s3v4",
+            connect_timeout=5,
+            read_timeout=30,
+            retries={"max_attempts": 2},
+        ),
     )
 
 
+_bucket_ready = False
+
+
 def ensure_bucket() -> None:
+    """Dev only: auto-create the MinIO bucket. In production the bucket already
+    exists, and R2 API tokens scoped to objects aren't allowed to HeadBucket /
+    CreateBucket — trying would make every upload fail."""
+    global _bucket_ready
     client = _client()
+    if _bucket_ready or settings.ENVIRONMENT != "development":
+        return
     try:
         client.head_bucket(Bucket=settings.S3_BUCKET)
     except Exception:  # noqa: BLE001
         client.create_bucket(Bucket=settings.S3_BUCKET)
+    _bucket_ready = True
 
 
 def upload_bytes(data: bytes, content_type: str, prefix: str, ext: str) -> str:

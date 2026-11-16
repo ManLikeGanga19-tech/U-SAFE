@@ -50,6 +50,31 @@ class Settings(BaseSettings):
     # (MinIO in dev, AWS S3 path-style).
     S3_PUBLIC_BASE_URL: str = ""
 
+    def storage_problems(self) -> list[str]:
+        """Why media uploads can't work with the current config ([] = fine).
+
+        Outside development, falling back to the MinIO dev defaults means the
+        R2 values were never set (e.g. blank in prod.env), and every upload would
+        fail with an obscure connection error.
+        """
+        if self.ENVIRONMENT == "development":
+            return []
+        problems = []
+        if not self.S3_ENDPOINT or "minio" in self.S3_ENDPOINT:
+            problems.append("S3_ENDPOINT is not set to the R2/S3 endpoint")
+        if not self.S3_ACCESS_KEY or self.S3_ACCESS_KEY == "usafe_minio":
+            problems.append("S3_ACCESS_KEY is missing")
+        if not self.S3_SECRET_KEY or self.S3_SECRET_KEY == "usafe_minio_pw":
+            problems.append("S3_SECRET_KEY is missing")
+        if not self.S3_BUCKET:
+            problems.append("S3_BUCKET is missing")
+        public = self.S3_PUBLIC_BASE_URL or self.S3_PUBLIC_ENDPOINT
+        if not public or "localhost" in public:
+            problems.append(
+                "S3_PUBLIC_BASE_URL is missing (public r2.dev or custom-domain URL)"
+            )
+        return problems
+
     def public_object_url(self, key: str) -> str:
         if self.S3_PUBLIC_BASE_URL:
             return f"{self.S3_PUBLIC_BASE_URL.rstrip('/')}/{key}"

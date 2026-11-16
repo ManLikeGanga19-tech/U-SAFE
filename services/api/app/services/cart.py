@@ -7,7 +7,7 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from app.models.catalog import ProductVariant
+from app.models.catalog import ProductStatus, ProductVariant
 from app.models.commerce import Cart, CartItem
 from app.models.inventory import InventoryItem
 from app.schemas.cart import CartLineOut, CartOut
@@ -39,7 +39,11 @@ def get_or_create(db: Session, token: str | None) -> Cart:
 
 def add_item(db: Session, cart: Cart, variant_id: uuid.UUID, quantity: int) -> None:
     variant = db.get(ProductVariant, variant_id)
-    if not variant or not variant.is_active:
+    if (
+        not variant
+        or not variant.is_active
+        or variant.product.status != ProductStatus.published
+    ):
         raise ValueError("Variant not available")
     existing = db.scalar(
         select(CartItem).where(

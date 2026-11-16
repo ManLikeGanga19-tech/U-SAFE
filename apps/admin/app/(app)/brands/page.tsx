@@ -31,10 +31,14 @@ export default function BrandsPage() {
     load();
   }
   async function uploadLogo(b: Brand, file: File) {
-    const url = await api.uploadImage(file);
-    await api.brands.update(b.id, { logo_url: url });
-    notify("Logo updated");
-    load();
+    try {
+      const url = await api.uploadImage(file);
+      await api.brands.update(b.id, { logo_url: url });
+      notify("Logo updated");
+      load();
+    } catch (e) {
+      notify(e instanceof Error ? `Upload failed: ${e.message}` : "Upload failed");
+    }
   }
 
   return (
@@ -72,7 +76,7 @@ export default function BrandsPage() {
               <div className="mt-3 flex flex-wrap gap-2">
                 <label className="cursor-pointer border-2 border-ink-900 px-2.5 py-1 font-display text-xs font-bold uppercase hover:bg-ink-900 hover:text-white">
                   Logo
-                  <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadLogo(b, f); e.target.value = ""; }} />
+                  <input type="file" accept="image/jpeg,image/png,image/webp,image/avif" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadLogo(b, f); e.target.value = ""; }} />
                 </label>
                 <button type="button" onClick={() => { setEditing(b.id); setEditName(b.name); }} className="border-2 border-ink-900 px-2.5 py-1 font-display text-xs font-bold uppercase hover:bg-ink-900 hover:text-white">Rename</button>
                 <button type="button" onClick={async () => { if (!confirm(`Delete ${b.name}?`)) return; await api.brands.remove(b.id); notify("Deleted"); load(); }} className="border-2 border-hivis-500 px-2.5 py-1 font-display text-xs font-bold uppercase text-hivis-700 hover:bg-hivis-500 hover:text-white">Del</button>

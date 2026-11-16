@@ -1,6 +1,8 @@
 """U-SAFE KE API — FastAPI application factory."""
 from __future__ import annotations
 
+import logging
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -25,6 +27,9 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(api_router, prefix=settings.API_V1_PREFIX)
+
+    for problem in settings.storage_problems():
+        logging.getLogger("usafe").error("media storage misconfigured: %s", problem)
 
     @app.get("/", tags=["root"])
     def root() -> dict:
