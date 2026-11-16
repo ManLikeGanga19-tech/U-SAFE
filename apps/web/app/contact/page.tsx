@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/page-header";
 export const metadata: Metadata = {
   title: "Contact — U-SAFE KE",
   description:
-    "Get in touch with U-SAFE KE — Ashray Industrial Park, Nairobi. Call +254 748 846635 or email info@usafeke.com.",
+    "Get in touch with U-SAFE KE — Ashray Industrial Park, Nairobi. Call +254 748 846635 or email info@u-safe.co.ke.",
 };
 
 type IconKey = "facebook" | "instagram" | "x" | "linkedin" | "youtube";
@@ -69,7 +69,7 @@ export default function ContactPage() {
           <ContactCard
             label="Email us"
             lines={[
-              ["info@usafeke.com", "mailto:info@usafeke.com"],
+              ["info@u-safe.co.ke", "mailto:info@u-safe.co.ke"],
               ["usafekenya@gmail.com", "mailto:usafekenya@gmail.com"],
             ]}
           />

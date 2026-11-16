@@ -3,8 +3,9 @@ from __future__ import annotations
 
 import enum
 import uuid
+from datetime import datetime
 
-from sqlalchemy import Enum, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import DateTime, Enum, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -23,6 +24,21 @@ class OrderStatus(str, enum.Enum):
 class PaymentProvider(str, enum.Enum):
     mpesa = "mpesa"
     manual = "manual"
+
+
+class Fulfilment(str, enum.Enum):
+    pickup = "pickup"
+    delivery = "delivery"
+
+
+class PaymentMethod(str, enum.Enum):
+    mpesa_stk = "mpesa_stk"          # STK push prompt, confirmed automatically
+    mpesa_paybill = "mpesa_paybill"  # customer pays Paybill manually; staff confirm
+    bank_transfer = "bank_transfer"  # bank transfer / invoice; staff confirm
+
+    @property
+    def is_manual(self) -> bool:
+        return self != PaymentMethod.mpesa_stk
 
 
 class PaymentStatus(str, enum.Enum):
@@ -81,8 +97,35 @@ class Order(UUIDMixin, TimestampMixin, Base):
         nullable=False,
         index=True,
     )
+    # Prices are VAT-exclusive: total = subtotal + VAT. Delivery is quoted by
+    # phone, so it is never part of the checkout total.
     subtotal_kes: Mapped[float] = mapped_column(Numeric(12, 2), default=0, nullable=False)
+    vat_kes: Mapped[float] = mapped_column(
+        Numeric(12, 2), default=0, server_default="0", nullable=False
+    )
     total_kes: Mapped[float] = mapped_column(Numeric(12, 2), default=0, nullable=False)
+
+    # Stored as plain strings (validated by the Fulfilment / PaymentMethod enums)
+    # so adding a method later doesn't need a Postgres enum migration.
+    fulfilment: Mapped[str] = mapped_column(
+        String(16), default=Fulfilment.delivery.value, server_default="delivery", nullable=False
+    )
+    payment_method: Mapped[str] = mapped_column(
+        String(20),
+        default=PaymentMethod.mpesa_stk.value,
+        server_default="mpesa_stk",
+        nullable=False,
+        index=True,
+    )
+    # Manual methods: transaction code the customer reports, and when an unpaid
+    # order is auto-cancelled (releasing its reserved stock).
+    payment_reference: Mapped[str | None] = mapped_column(String(64))
+    payment_due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    # Optional B2B details (printed on the order / invoice).
+    company_name: Mapped[str | None] = mapped_column(String(200))
+    kra_pin: Mapped[str | None] = mapped_column(String(20))
+    po_number: Mapped[str | None] = mapped_column(String(60))
 
     contact_name: Mapped[str | None] = mapped_column(String(160))
     contact_phone: Mapped[str | None] = mapped_column(String(32))

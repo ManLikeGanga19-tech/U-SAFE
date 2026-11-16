@@ -38,7 +38,7 @@ export function SiteFooter() {
         <FooterCol
           title="Contact"
           links={[
-            ["info@usafeke.com", "mailto:info@usafeke.com"],
+            ["info@u-safe.co.ke", "mailto:info@u-safe.co.ke"],
             ["+254 748 846635", "tel:+254748846635"],
             ["Ashray Industrial Park", "/contact"],
             ["Nairobi, Kenya", "/contact"],

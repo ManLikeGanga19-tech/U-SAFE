@@ -113,9 +113,20 @@ def reconcile_once(now: datetime | None = None) -> dict:
     return counts
 
 
+def expire_manual_once(now: datetime | None = None) -> int:
+    db = SessionLocal()
+    try:
+        n = order_service.expire_unpaid_manual_orders(db, now)
+        db.commit()
+        return n
+    finally:
+        db.close()
+
+
 async def reconcile_pending(ctx: dict) -> str:
     try:
         counts = reconcile_once()
+        counts["expired"] = expire_manual_once()
     except Exception:  # noqa: BLE001 — never kill the worker; next tick retries
         log.exception("reconcile_pending failed")
         return "error"

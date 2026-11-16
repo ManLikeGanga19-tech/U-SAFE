@@ -45,7 +45,7 @@ def dashboard_stats(db: Session = Depends(get_db)) -> dict:
 
     # ── Orders by status ──
     rows = db.execute(
-        select(Order.status, func.count(), func.coalesce(func.sum(Order.total_kes), 0))
+        select(Order.status, func.count(), func.coalesce(func.sum(Order.subtotal_kes), 0))
         .group_by(Order.status)
     ).all()
     orders_by_status = {s.value: 0 for s in OrderStatus}
@@ -75,7 +75,7 @@ def dashboard_stats(db: Session = Depends(get_db)) -> dict:
     since = datetime.utcnow().date() - timedelta(days=SERIES_DAYS - 1)
     day = func.date(Order.created_at)
     series_rows = db.execute(
-        select(day, func.count(), func.coalesce(func.sum(Order.total_kes), 0))
+        select(day, func.count(), func.coalesce(func.sum(Order.subtotal_kes), 0))
         .where(Order.status.in_(REVENUE_STATUSES))
         .where(func.date(Order.created_at) >= since)
         .group_by(day)
