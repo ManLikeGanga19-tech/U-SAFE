@@ -37,6 +37,16 @@ class Settings(BaseSettings):
     REDIS_HOST: str = "redis"
     REDIS_PORT: int = 6379
 
+    # ── Media storage ──
+    # "local": files live on this server's disk (a Docker volume on the VPS) and
+    #          the API serves them at /media. "s3": MinIO (dev) / R2 / AWS.
+    STORAGE_BACKEND: str = "s3"
+    MEDIA_ROOT: str = "/data/media"
+    # Public URL that maps to MEDIA_ROOT, e.g. https://api.u-safe.co.ke/media
+    MEDIA_URL_BASE: str = ""
+    # Uploaded photos are downscaled to fit this box and re-encoded as WebP.
+    MEDIA_MAX_DIMENSION: int = 1600
+
     # ── Object storage (S3 / MinIO / R2) ──
     S3_ENDPOINT: str = "http://minio:9000"
     S3_PUBLIC_ENDPOINT: str = "http://localhost:9002"
@@ -50,7 +60,41 @@ class Settings(BaseSettings):
     # (MinIO in dev, AWS S3 path-style).
     S3_PUBLIC_BASE_URL: str = ""
 
+    def storage_problems(self) -> list[str]:
+        """Why media uploads can't work with the current config ([] = fine).
+
+        Outside development, falling back to the MinIO dev defaults means the
+        R2 values were never set (e.g. blank in prod.env), and every upload would
+        fail with an obscure connection error.
+        """
+        if self.STORAGE_BACKEND == "local":
+            problems = []
+            if not self.MEDIA_URL_BASE:
+                problems.append("MEDIA_URL_BASE is missing (e.g. https://api.u-safe.co.ke/media)")
+            if not self.MEDIA_ROOT:
+                problems.append("MEDIA_ROOT is missing")
+            return problems
+        if self.ENVIRONMENT == "development":
+            return []
+        problems = []
+        if not self.S3_ENDPOINT or "minio" in self.S3_ENDPOINT:
+            problems.append("S3_ENDPOINT is not set to the R2/S3 endpoint")
+        if not self.S3_ACCESS_KEY or self.S3_ACCESS_KEY == "usafe_minio":
+            problems.append("S3_ACCESS_KEY is missing")
+        if not self.S3_SECRET_KEY or self.S3_SECRET_KEY == "usafe_minio_pw":
+            problems.append("S3_SECRET_KEY is missing")
+        if not self.S3_BUCKET:
+            problems.append("S3_BUCKET is missing")
+        public = self.S3_PUBLIC_BASE_URL or self.S3_PUBLIC_ENDPOINT
+        if not public or "localhost" in public:
+            problems.append(
+                "S3_PUBLIC_BASE_URL is missing (public r2.dev or custom-domain URL)"
+            )
+        return problems
+
     def public_object_url(self, key: str) -> str:
+        if self.STORAGE_BACKEND == "local":
+            return f"{self.MEDIA_URL_BASE.rstrip('/')}/{key}"
         if self.S3_PUBLIC_BASE_URL:
             return f"{self.S3_PUBLIC_BASE_URL.rstrip('/')}/{key}"
         return f"{self.S3_PUBLIC_ENDPOINT}/{self.S3_BUCKET}/{key}"

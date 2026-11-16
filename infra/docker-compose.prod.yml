@@ -1,5 +1,7 @@
 # U-SAFE KE — production stack for the VPS (API + worker + Postgres + Redis).
-# SHARES the box with wifios. Frontends stay on Vercel; media stays on Cloudflare R2.
+# SHARES the box with wifios. Frontends stay on Vercel. Media (product photos,
+# brand logos, quote PDFs) lives on this box in the usafe-prod-media volume and
+# is served by the API at https://api.u-safe.co.ke/media/...
 # See DEPLOY-VPS.md.
 #
 # Layout on the server (deploy user's home):
@@ -76,6 +78,11 @@ services:
     environment:
       <<: *db-env
       RUN_MIGRATIONS: "1"
+      STORAGE_BACKEND: local
+      MEDIA_ROOT: /data/media
+      MEDIA_URL_BASE: ${MEDIA_URL_BASE:-https://api.u-safe.co.ke/media}
+    volumes:
+      - media_data:/data/media
     command:
       ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000",
        "--workers", "2", "--proxy-headers", "--forwarded-allow-ips", "*"]
@@ -127,3 +134,6 @@ volumes:
     name: usafe-prod-pg-data
   redis_data:
     name: usafe-prod-redis-data
+  # Uploaded media. Back it up with the database (see DEPLOY-VPS.md).
+  media_data:
+    name: usafe-prod-media

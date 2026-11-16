@@ -1,8 +1,9 @@
 # Deployment — VPS (backend) + Vercel (frontends)
 
 The U-SAFE backend (API + ARQ worker + Postgres + Redis) runs on a **Contabo VPS**
-in Docker Compose. The storefront and admin stay on **Vercel**. Media stays on
-**Cloudflare R2**. This replaces the old Render setup (see `DEPLOY.md` history).
+in Docker Compose. The storefront and admin stay on **Vercel**. Media (images,
+PDFs) is stored **on the VPS** and served by the API. This replaces the old Render
++ Cloudflare R2 setup (see `DEPLOY.md` history).
 
 The VPS is **shared** with other projects (ShuleHQ, Wooden Houses, wifios). U-SAFE is
 deliberately walled off so it cannot affect them — read §4 before touching the edge.
@@ -32,11 +33,29 @@ Docker network (`usafe-edge-net`) that the edge is attached to.
 
 ---
 
-## 1. Cloudflare R2 (media)
-Same as before — product images, brand logos, quote PDFs. In `prod.env` set
-`S3_ENDPOINT`, `S3_PUBLIC_BASE_URL` (r2.dev or custom domain), `S3_ACCESS_KEY`,
-`S3_SECRET_KEY`, `S3_BUCKET`, `S3_REGION=auto`. The API boots without R2; only
-admin uploads fail until these are set.
+## 1. Media (stored on the VPS)
+Product photos, brand logos and quote PDFs are stored in the Docker volume
+`usafe-prod-media` (mounted at `/data/media` in the API) and served by the API at
+`https://api.u-safe.co.ke/media/<folder>/<uuid>.<ext>` with year-long immutable
+cache headers. Nothing to configure: `STORAGE_BACKEND=local` is set in
+`docker-compose.prod.yml`. No extra DNS, Caddy block or container.
+
+Uploaded photos are auto-rotated, stripped of metadata (incl. phone GPS), shrunk
+to max 1600px and saved as WebP, so files stay small (typically 100–300 KB).
+
+Check: `curl -s https://api.u-safe.co.ke/api/v1/health` shows `"media_storage":"ok"`.
+Disk use: `docker system df -v | grep usafe-prod-media`.
+
+### Backups (media + database)
+Everything now lives on this one box, so run `infra/backup.sh` nightly (instructions
+at the top of the script: one crontab line, no root). It keeps 14 days of
+`pg_dump` + media tarballs in `~/usafe-backups`. **Also copy that folder off the
+VPS regularly**; a disk failure takes local backups with it:
+```bash
+rsync -az deploy@94.72.102.13:usafe-backups/ ./usafe-backups/
+```
+Restore: `docker exec -i usafe-prod-postgres pg_restore -U usafe -d usafe --clean < db-….dump`
+and `docker run --rm -i -v usafe-prod-media:/media alpine tar xzf - -C /media < media-….tgz`.
 
 ---
 

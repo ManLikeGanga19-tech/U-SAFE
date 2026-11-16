@@ -12,8 +12,15 @@ from app.models.inventory import InventoryItem, StockMovement, StockReason
 from app.models.user import User
 
 
-def get_or_create_item(db: Session, variant_id: uuid.UUID) -> InventoryItem:
-    item = db.scalar(select(InventoryItem).where(InventoryItem.variant_id == variant_id))
+def get_or_create_item(
+    db: Session, variant_id: uuid.UUID, *, lock: bool = False
+) -> InventoryItem:
+    stmt = select(InventoryItem).where(InventoryItem.variant_id == variant_id)
+    if lock:
+        # Serialize concurrent read-modify-write of quantity_on_hand (two orders
+        # paying for the same variant at once would otherwise lose an update).
+        stmt = stmt.with_for_update()
+    item = db.scalar(stmt)
     if item is None:
         item = InventoryItem(variant_id=variant_id, quantity_on_hand=0, reorder_level=0)
         db.add(item)
@@ -32,7 +39,7 @@ def adjust(
     note: str | None = None,
 ) -> InventoryItem:
     """Apply a stock delta: append a movement + update the on-hand cache."""
-    item = get_or_create_item(db, variant_id)
+    item = get_or_create_item(db, variant_id, lock=True)
     item.quantity_on_hand = max(0, item.quantity_on_hand + delta)
     db.add(
         StockMovement(

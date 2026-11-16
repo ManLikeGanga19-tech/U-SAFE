@@ -26,5 +26,6 @@ def health(db: Session = Depends(get_db)) -> dict:
         "service": "usafe-api",
         "environment": settings.ENVIRONMENT,
         "database": "up" if db_ok else "down",
+        "media_storage": "ok" if not settings.storage_problems() else "not_configured",
         "version": VERSION,
     }

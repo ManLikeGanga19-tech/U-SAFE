@@ -21,13 +21,39 @@ interface Order {
   contact_name: string | null;
   items: OrderLine[];
   payment: { status: string; mpesa_receipt: string | null } | null;
+  can_retry_payment: boolean;
 }
 
 export default function OrderPage() {
   const { number } = useParams<{ number: string }>();
   const [order, setOrder] = useState<Order | null>(null);
   const [notFound, setNotFound] = useState(false);
+  const [retryPhone, setRetryPhone] = useState("");
+  const [retryBusy, setRetryBusy] = useState(false);
+  const [retryError, setRetryError] = useState<string | null>(null);
+  const [pollKey, setPollKey] = useState(0);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  async function retry(e: React.FormEvent) {
+    e.preventDefault();
+    setRetryBusy(true);
+    setRetryError(null);
+    try {
+      const res = await fetch(`${API}/api/v1/orders/${number}/retry-payment`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mpesa_phone: retryPhone }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error((data as { detail?: string }).detail || "Couldn't resend the M-Pesa prompt");
+      setOrder((o) => (o ? { ...o, payment: { status: "pending", mpesa_receipt: null }, can_retry_payment: false } : o));
+      setPollKey((k) => k + 1); // restart polling
+    } catch (err) {
+      setRetryError(err instanceof Error ? err.message : "Retry failed");
+    } finally {
+      setRetryBusy(false);
+    }
+  }
 
   useEffect(() => {
     let active = true;
@@ -57,7 +83,7 @@ export default function OrderPage() {
       active = false;
       if (timer.current) clearInterval(timer.current);
     };
-  }, [number]);
+  }, [number, pollKey]);
 
   if (notFound) {
     return (
@@ -130,9 +156,31 @@ export default function OrderPage() {
         </div>
       </div>
 
+      {failed && order.can_retry_payment && (
+        <form onSubmit={retry} className="mt-6 border-2 border-ink-900 bg-white p-5">
+          <h2 className="font-display text-lg font-black uppercase">Try the payment again</h2>
+          <p className="mt-1 text-sm text-ink-500">
+            Your order is saved. We&apos;ll send a new M-Pesa prompt to this number.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-3">
+            <input
+              className="min-w-[200px] flex-1 border-2 border-ink-900 bg-white px-3 py-2.5 text-sm focus:outline-none focus:shadow-focus"
+              value={retryPhone}
+              onChange={(e) => setRetryPhone(e.target.value)}
+              placeholder="07XX XXX XXX"
+              aria-label="M-Pesa phone number"
+              required
+            />
+            <button type="submit" disabled={retryBusy} className="btn-signal disabled:opacity-60">
+              {retryBusy ? "Sending…" : "Resend M-Pesa prompt →"}
+            </button>
+          </div>
+          {retryError && <p className="mt-2 text-sm font-medium text-hivis-700">{retryError}</p>}
+        </form>
+      )}
+
       <div className="mt-6 flex gap-3">
         <Link href="/catalog" className="btn-ghost">Continue shopping</Link>
-        {failed && <Link href="/cart" className="btn-signal">Try again</Link>}
       </div>
     </div>
   );
